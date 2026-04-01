@@ -121,7 +121,7 @@ FrontPocket is configured via `frontpocket.ini`. The server looks for it next to
 default_voice = alba
 default_speed = 1.0
 port = 5562
-lookahead_chunks = 3
+lookahead_chunks = 5
 language = en
 log_level = INFO
 interrupt_sound = /var/lib/FrontPocket/sounds/notification.wav
