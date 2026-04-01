@@ -1,0 +1,30 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.backends.legacy:build"
+
+[project]
+name = "frontpocket"
+version = "1.1.0"
+description = "Low-latency daemon-based TTS for Linux"
+readme = "README.md"
+license = { text = "MIT" }
+requires-python = ">=3.10"
+dependencies = [
+    "pocket_tts",
+    "pysbd",
+    "pyrubberband",
+    "sounddevice",
+    "numpy",
+    "scipy",
+]
+
+[project.optional-dependencies]
+windows = ["pyperclip"]
+
+[project.scripts]
+fp                   = "frontpocket_client:main"
+frontpocket-server   = "frontpocket_server:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["frontpocket*"]

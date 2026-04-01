@@ -1,0 +1,24 @@
+[Unit]
+Description=FrontPocket TTS Server
+After=network.target sound.target
+Wants=sound.target
+
+[Service]
+Type=simple
+User=frontpocket
+Group=audio
+WorkingDirectory=/opt/FrontPocket
+ExecStart=/opt/FrontPocket/venv/bin/python3 /opt/FrontPocket/frontpocket_server.py
+Restart=on-failure
+RestartSec=5
+
+# Give the model time to load before systemd considers it timed out
+TimeoutStartSec=120
+
+# Logging goes to journald via stdout (matches our logging setup)
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=frontpocket
+
+[Install]
+WantedBy=multi-user.target
