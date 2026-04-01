@@ -1,9 +1,9 @@
 # FrontPocket
 FrontPocket provides a front-end to Kyutai Labs Pocket TTS, including the ability to read text from the clipboard, from a file and passed on the CLI. Features include the ability to pause, resume, move back and forward in the spoken text and change playback speed.
 
-It is a low-latency, daemon-based text-to-speech system developed and tested under Linux. FrontPocket loads the TTS model once at startup and streams audio sentence by sentence, so there is minimal delay between sending text and hearing it spoken.
+It is a low-latency, daemon-based text-to-speech system, developed and tested under Linux. FrontPocket loads the TTS model once at startup and streams audio sentence by sentence, so there is minimal delay between sending text and hearing it spoken.
 
-It is designed to be always running in the background as a systemd service, controlled by a lightweight CLI client.
+It is designed to be always running in the background as a systemd service, controlled by a lightweight CLI client. Of course, you can also run frontpocket_server.py from the CLI to use it in interactive mode. I'd suggest doing that and then running as a service once you're satisfied it is dialed-in.
 
 Note: Developed/tested under Debian Linux. MacOS/Windows "should" work. Please test and provide a PR for any needed fixes.
 
