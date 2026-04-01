@@ -1,5 +1,5 @@
 # FrontPocket
-FrontPocket provides a front-end to Kyutai Labs Pocket TTS, including the ability to read text from the clipboard, from a file and passed on the CLI. Features include the ability to pause, resume, move back and forward in the spoken text and change playback speed.
+FrontPocket provides a front-end to Kyutai Labs Pocket TTS, including the ability to read text from the clipboard, from a text file and passed directly on the CLI. Features include the ability to pause, resume, move back and forward in the spoken text and change playback speed.
 
 It is a low-latency, daemon-based text-to-speech system, developed and tested under Linux. FrontPocket loads the TTS model once at startup and streams audio sentence by sentence, so there is minimal delay between sending text and hearing it spoken.
 
