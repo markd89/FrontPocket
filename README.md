@@ -5,11 +5,13 @@ It is a low-latency, daemon-based text-to-speech system developed and tested und
 
 It is designed to be always running in the background as a systemd service, controlled by a lightweight CLI client.
 
+Note: Developed/tested under Debian Linux. MacOS/Windows "should" work. Please test and provide a PR for any needed fixes.
+
 Inspiration for this project comes from kokorodoki which provides a similar featureset for kokoro TTS. https://github.com/eel-brah/kokorodoki
 
 Much thanks to the very smart people at Kyutai Labs for their beautiful model and helpful reference code. https://github.com/kyutai-labs/pocket-tts Their stuff is where the <b>real magic</b> happens.
 
-Note: Developed/tested under Debian Linux. MacOS/Windows "should" work. Please test and provide a PR for any needed fixes.
+
 ---
 
 ## Features
