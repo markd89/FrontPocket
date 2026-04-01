@@ -50,7 +50,7 @@ See [INSTALL.md](INSTALL.md) for full setup instructions including systemd servi
 ```bash
 sudo useradd -r -s /sbin/nologin frontpocket
 sudo usermod -aG audio frontpocket
-sudo git clone https://github.com/yourusername/FrontPocket.git /opt/FrontPocket
+sudo git clone https://github.com/markd89/FrontPocket.git /opt/FrontPocket
 sudo -u frontpocket python3 -m venv /opt/FrontPocket/venv
 sudo -u frontpocket /opt/FrontPocket/venv/bin/pip install -r /opt/FrontPocket/requirements.txt
 sudo cp /opt/FrontPocket/frontpocket.service /etc/systemd/system/
