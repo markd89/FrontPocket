@@ -9,6 +9,7 @@ Inspiration for this project comes from kokorodoki which provides a similar feat
 
 Much thanks to the very smart people at Kyutai Labs for their beautiful model and helpful reference code. https://github.com/kyutai-labs/pocket-tts Their stuff is where the <b>real magic</b> happens.
 
+Note: Developed/tested under Debian Linux. MacOS/Windows "should" work. Please test and provide a PR for any needed fixes.
 ---
 
 ## Features
