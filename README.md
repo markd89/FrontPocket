@@ -134,7 +134,7 @@ See the fully commented `frontpocket.ini` for all available options.
 
 ## Voices
 
-FrontPocket uses [pocket_tts](https://github.com/kyutai-labs/moshi) for TTS.
+FrontPocket uses [pocket_tts](https://github.com/kyutai-labs/pocket-tts) for TTS.
 
 **Built-in voices** are referenced by name in `frontpocket.ini`:
 ```ini
