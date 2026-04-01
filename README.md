@@ -7,7 +7,7 @@ It is designed to be always running in the background as a systemd service, cont
 
 Inspiration for this project comes from kokorodoki which provides a similar featureset for kokoro TTS. https://github.com/eel-brah/kokorodoki
 
-Much thanks to the very smart people at Kyutai Labs for their beautiful model and helpful reference code. https://github.com/kyutai-labs/pocket-tts
+Much thanks to the very smart people at Kyutai Labs for their beautiful model and helpful reference code. https://github.com/kyutai-labs/pocket-tts Their stuff is where the <b>real magic</b> happens.
 
 ---
 
