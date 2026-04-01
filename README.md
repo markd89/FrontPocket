@@ -121,11 +121,11 @@ port = 5562
 lookahead_chunks = 3
 language = en
 log_level = INFO
-interrupt_sound = /var/lib/FrontPocket/sounds/ding.wav
+interrupt_sound = /var/lib/FrontPocket/sounds/notification.wav
 
 [voices]
 alba  = alba
-masha = /var/lib/FrontPocket/voices/masha.safetensors
+mary = /var/lib/FrontPocket/voices/mary.safetensors
 ```
 
 See the fully commented `frontpocket.ini` for all available options.
