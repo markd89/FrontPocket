@@ -45,7 +45,7 @@ sudo apt install wl-clipboard
 
 ```bash
 sudo mkdir -p /opt/FrontPocket
-sudo git clone https://github.com/yourusername/FrontPocket.git /opt/FrontPocket
+sudo git clone https://github.com/markd89/FrontPocket.git /opt/FrontPocket
 sudo chown -R frontpocket:frontpocket /opt/FrontPocket
 ```
 
@@ -95,7 +95,7 @@ then add entries to the `[voices]` section of `frontpocket.ini`:
 ```ini
 [voices]
 alba   = alba
-masha  = /var/lib/FrontPocket/voices/masha.safetensors
+maria  = /var/lib/FrontPocket/voices/maria.safetensors
 ```
 
 ---
