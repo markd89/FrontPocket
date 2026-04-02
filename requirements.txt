@@ -1,0 +1,7 @@
+pocket_tts
+pysbd
+pyrubberband
+sounddevice
+numpy
+scipy
+# pyperclip  # Uncomment for Windows clipboard support
