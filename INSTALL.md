@@ -77,15 +77,6 @@ Note: the full path to `pip` is used deliberately — no need to activate the ve
 for this step. Calling the binary directly ensures packages install into the
 correct venv.
 
-### Optional: install as an editable package (developers only)
-
-If you want the `fp` console script installed via `pyproject.toml` instead of
-the manual symlink in step 8:
-
-```bash
-sudo -u frontpocket /opt/FrontPocket/venv/bin/pip install -e /opt/FrontPocket
-```
-
 ---
 
 ## 5. Create directories for config and voices
