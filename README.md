@@ -46,9 +46,6 @@ The server and client communicate over a local TCP socket (default port `5562`).
 
 See [INSTALL.md](INSTALL.md) for full setup instructions including systemd service configuration.
 
-
-```
-
 ---
 
 ## Client Usage
