@@ -8,6 +8,7 @@ Type=simple
 User=frontpocket
 Group=audio
 WorkingDirectory=/opt/FrontPocket
+EnvironmentFile=/etc/FrontPocket/environment
 ExecStart=/opt/FrontPocket/venv/bin/python3 /opt/FrontPocket/frontpocket_server.py
 Restart=on-failure
 RestartSec=5
