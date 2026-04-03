@@ -93,8 +93,25 @@ sudo -u frontpocket /opt/FrontPocket/venv/bin/pip install -e /opt/FrontPocket
 ```bash
 sudo mkdir -p /etc/FrontPocket
 sudo mkdir -p /var/lib/FrontPocket/voices
+sudo mkdir -p /var/lib/FrontPocket/sounds
 sudo chown -R frontpocket:frontpocket /var/lib/FrontPocket
 ```
+Place any custom voice embeddings in `/var/lib/FrontPocket/voices/` and any
+notification sounds in `/var/lib/FrontPocket/sounds/`.
+
+To use a notification sound before interrupt messages, copy your WAV file and
+set the path in `frontpocket.ini`:
+
+```bash
+sudo cp /opt/FrontPocket/notification.wav /var/lib/FrontPocket/sounds/
+sudo chown frontpocket:frontpocket /var/lib/FrontPocket/sounds/notification.wav
+```
+
+```ini
+interrupt_sound = /var/lib/FrontPocket/sounds/notification.wav
+```
+
+
 
 ---
 
@@ -102,6 +119,7 @@ sudo chown -R frontpocket:frontpocket /var/lib/FrontPocket
 
 ```bash
 sudo cp /opt/FrontPocket/frontpocket.ini /etc/FrontPocket/frontpocket.ini
+sudo cp /opt/FrontPocket/notific /etc/a/frontpocket.ini
 sudo nano /etc/FrontPocket/frontpocket.ini
 ```
 
