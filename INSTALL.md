@@ -8,7 +8,7 @@ over a TCP socket, and can run as a systemd service.
 
 ## Requirements
 
-- Linux (Debian/Ubuntu recommended)
+- Linux (tested under Debian). Other distros and MacOS, Windows may work. Please make a PR for fixes.
 - Python 3.10+
 - ALSA audio (`libasound2`)
 - `rubberband-cli` (for speed adjustment)
