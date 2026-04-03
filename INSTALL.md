@@ -79,7 +79,7 @@ correct venv.
 
 ---
 
-## 5. Create directories for config and voices
+## 5. Create directories for config and voices and Hugging Face Token environment variable. 
 
 ```bash
 sudo mkdir -p /etc/FrontPocket
@@ -171,7 +171,7 @@ sudo systemctl enable frontpocket
 sudo systemctl start frontpocket
 ```
 
-Check that the service started successfully (model loading takes up to 60 seconds):
+Check that the service started successfully (NOTE: First start may take several minutes as the model is downloaded from Hugging Face. Subsequent startups should be just a few seconds.):
 
 ```bash
 sudo systemctl status frontpocket
