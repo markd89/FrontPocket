@@ -14,6 +14,10 @@ over a TCP socket, and can run as a systemd service.
 - `rubberband-cli` (for speed adjustment)
 - `xclip` (X11) or `wl-clipboard` (Wayland) for clipboard support
 
+FrontPocket uses the TTS engine in CPU mode. A GPU is not required and CUDA
+packages are not installed. If you have an NVIDIA GPU you can experiment with
+GPU acceleration, but it is not needed for normal use.
+
 ---
 
 ## 1. Create the system user
@@ -45,21 +49,42 @@ sudo apt install wl-clipboard
 
 ```bash
 sudo mkdir -p /opt/FrontPocket
-sudo git clone https://github.com/markd89/FrontPocket.git /opt/FrontPocket
+sudo git clone https://github.com/yourusername/FrontPocket.git /opt/FrontPocket
 sudo chown -R frontpocket:frontpocket /opt/FrontPocket
 ```
 
 ---
 
-## 4. Create the Python virtual environment
+## 4. Create the Python virtual environment and install dependencies
 
 ```bash
 sudo -u frontpocket python3 -m venv /opt/FrontPocket/venv
-sudo -u frontpocket /opt/FrontPocket/venv/bin/pip install -e /opt/FrontPocket
 ```
 
-This installs all dependencies and puts the `fp` and `frontpocket-server` commands
-on the venv's PATH via `pyproject.toml`.
+Install CPU-only PyTorch first to avoid downloading large CUDA packages:
+
+```bash
+sudo -u frontpocket /opt/FrontPocket/venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+```
+
+Then install the remaining dependencies:
+
+```bash
+sudo -u frontpocket /opt/FrontPocket/venv/bin/pip install -r /opt/FrontPocket/requirements.txt
+```
+
+Note: the full path to `pip` is used deliberately — no need to activate the venv
+for this step. Calling the binary directly ensures packages install into the
+correct venv.
+
+### Optional: install as an editable package (developers only)
+
+If you want the `fp` console script installed via `pyproject.toml` instead of
+the manual symlink in step 8:
+
+```bash
+sudo -u frontpocket /opt/FrontPocket/venv/bin/pip install -e /opt/FrontPocket
+```
 
 ---
 
@@ -123,13 +148,25 @@ journalctl -u frontpocket -f
 
 ---
 
-## 8. Using the client
+## 8. Make the client available system-wide
 
-After installing via `pip install -e`, the `fp` command is available inside the
-venv. To use it system-wide without activating the venv, symlink it:
+Create a simple wrapper script so `fp` works from any terminal without
+activating the venv:
 
 ```bash
-sudo ln -s /opt/FrontPocket/venv/bin/fp /usr/local/bin/fp
+sudo tee /usr/local/bin/fp > /dev/null << 'EOF'
+#!/bin/bash
+exec /opt/FrontPocket/venv/bin/python3 /opt/FrontPocket/frontpocket_client.py "$@"
+EOF
+sudo chmod +x /usr/local/bin/fp
+```
+
+Verify it works:
+
+```bash
+fp --ping
+fp --version
+fp --list-voices
 ```
 
 Then use it from anywhere:
@@ -144,7 +181,7 @@ fp --pause
 fp --resume
 fp --next
 fp --back
-fp --voice masha
+fp --voice maria
 fp --speed 1.5
 fp --status
 fp --interruptwith "Dinner is ready"
@@ -156,9 +193,8 @@ fp --version
 ## Upgrading
 
 ```bash
-cd /opt/FrontPocket
-sudo -u frontpocket git pull
-sudo -u frontpocket /opt/FrontPocket/venv/bin/pip install -r requirements.txt
+sudo -u frontpocket git -C /opt/FrontPocket pull
+sudo -u frontpocket /opt/FrontPocket/venv/bin/pip install -r /opt/FrontPocket/requirements.txt
 sudo systemctl restart frontpocket
 ```
 
