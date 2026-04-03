@@ -117,18 +117,23 @@ interrupt_sound = /var/lib/FrontPocket/sounds/notification.wav
 
 ## 6. Install and edit the configuration file
 
+Copy the template from the repo into `/etc/FrontPocket/`, remove the original,
+then create a symlink so the server can find it:
+
 ```bash
 sudo cp /opt/FrontPocket/frontpocket.ini /etc/FrontPocket/frontpocket.ini
-sudo cp /opt/FrontPocket/notific /etc/a/frontpocket.ini
+sudo rm /opt/FrontPocket/frontpocket.ini
+sudo ln -s /etc/FrontPocket/frontpocket.ini /opt/FrontPocket/frontpocket.ini
+```
+
+Now edit the config in its canonical location:
+
+```bash
 sudo nano /etc/FrontPocket/frontpocket.ini
 ```
 
-The server looks for `frontpocket.ini` next to `frontpocket_server.py` first, then in the current
-working directory. To use `/etc/FrontPocket/frontpocket.ini`, create a symlink:
-
-```bash
-sudo ln -s /etc/FrontPocket/frontpocket.ini /opt/FrontPocket/frontpocket.ini
-```
+All future edits should be made to `/etc/FrontPocket/frontpocket.ini`. The
+symlink in `/opt/FrontPocket/` should never be edited directly.
 
 ### Adding custom voices
 
