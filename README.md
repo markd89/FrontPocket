@@ -135,7 +135,7 @@ alba = alba
 
 **Custom voices** use `.safetensors` embedding files:
 ```ini
-masha = /var/lib/FrontPocket/voices/mary.safetensors
+mary = /var/lib/FrontPocket/voices/mary.safetensors
 ```
 
 **Hugging Face voices** can be referenced directly:
