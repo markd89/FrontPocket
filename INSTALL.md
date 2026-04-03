@@ -102,7 +102,30 @@ sudo chown frontpocket:frontpocket /var/lib/FrontPocket/sounds/notification.wav
 interrupt_sound = /var/lib/FrontPocket/sounds/notification.wav
 ```
 
+### Hugging Face token
 
+FrontPocket needs a Hugging Face token to download the TTS model on first run.
+If you want to use the voice-cloning feature of Pocket-TTS, you'll need to follow
+the insuctructions on their project and generate the HF Token. The following steps
+allow you to store that token securely and have it referenced by the service.
+ 
+Create a secure environment file that the service will read at startup:
+
+```bash
+sudo touch /etc/FrontPocket/environment
+sudo chmod 600 /etc/FrontPocket/environment
+sudo chown frontpocket:frontpocket /etc/FrontPocket/environment
+```
+
+Add your token:
+
+```bash
+echo "HF_TOKEN=your_token_here" | sudo tee /etc/FrontPocket/environment
+sudo chmod 600 /etc/FrontPocket/environment
+```
+
+The service file references this file via `EnvironmentFile=` so the token is
+never visible in process listings or world-readable service files.
 
 ---
 
