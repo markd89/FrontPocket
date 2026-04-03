@@ -143,7 +143,7 @@ then add entries to the `[voices]` section of `frontpocket.ini`:
 ```ini
 [voices]
 alba   = alba
-maria  = /var/lib/FrontPocket/voices/maria.safetensors
+mary  = /var/lib/FrontPocket/voices/mary.safetensors
 ```
 
 ---
