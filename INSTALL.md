@@ -258,6 +258,15 @@ Make sure the server is running and the port in `frontpocket.ini` matches on bot
 sudo systemctl status frontpocket
 fp --status
 ```
+**HF_TOKEN not being picked up / unauthenticated requests warning**
+systemd's `EnvironmentFile` requires strict `KEY=value` format. Check the file:
+```bash
+sudo cat -A /etc/FrontPocket/environment
+```
+Lines must end with `$` only. Common problems: quotes around the value
+(`HF_TOKEN="abc"` should be `HF_TOKEN=abc`), spaces around `=`, or Windows
+line endings (`^M$`). Fix the file then restart the service.
+
 
 **PortAudio timeout warnings**
 These are intermittent ALSA timing warnings and are not fatal. If they occur
