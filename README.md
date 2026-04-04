@@ -75,6 +75,8 @@ fp [text] [options]
 | `fp --next` | | Skip to next sentence |
 | `fp --back` | | Go back one sentence |
 
+Why no --stop? Just use pause and don't resume.
+
 ### Settings
 
 | Command | Description |
