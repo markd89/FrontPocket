@@ -61,7 +61,7 @@ sudo chown -R frontpocket:frontpocket /opt/FrontPocket
 sudo -u frontpocket python3 -m venv /opt/FrontPocket/venv
 ```
 
-Install CPU-only PyTorch first to avoid downloading large CUDA packages:
+Install CPU-only PyTorch first to avoid downloading large CUDA packages: (If you want CUDA/GPU skip this step)
 
 ```bash
 sudo -u frontpocket /opt/FrontPocket/venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
