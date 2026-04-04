@@ -227,16 +227,6 @@ fp --version
 
 ---
 
-## Upgrading
-
-```bash
-sudo -u frontpocket git -C /opt/FrontPocket pull
-sudo -u frontpocket /opt/FrontPocket/venv/bin/pip install -r /opt/FrontPocket/requirements.txt
-sudo systemctl restart frontpocket
-```
-
----
-
 ## Uninstalling
 
 ```bash
