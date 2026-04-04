@@ -4,19 +4,17 @@ FrontPocket is a low-latency text-to-speech server that pre-loads the TTS model
 and streams audio chunk by chunk. It is controlled via a lightweight CLI client
 over a TCP socket, and can run as a systemd service.
 
+The instructions below setup a VENV, put everything in the right directories with the correct permissions and setup the SystemD service. That's what's recommended. For those who just want to play with it interactively, it should be possible to clone the project into a folder on your machine, install the requirements and then run ```python3 frontpocket_server.py``` Then from another CLI, you can run  ```python3 frontpocket_client.py``` passing it the parameters. You're suggested to skim the full instructions anyway. 
+
 ---
 
 ## Requirements
 
-- Linux (tested under Debian). Other distros and MacOS, Windows may work. Please make a PR for fixes.
+- Linux (tested under Debian). Other distros and MacOS, Windows may work with a little persuasion. Please make a PR with fixes.
 - Python 3.10+
 - ALSA audio (`libasound2`)
 - `rubberband-cli` (for speed adjustment)
 - `xclip` (X11) or `wl-clipboard` (Wayland) for clipboard support
-
-FrontPocket uses the TTS engine in CPU mode. A GPU is not required and CUDA
-packages are not installed. If you have an NVIDIA GPU you can experiment with
-GPU acceleration, but it is not needed for normal use.
 
 ---
 
