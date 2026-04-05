@@ -236,6 +236,20 @@ Options for Speed, Voice and Quit are right-click. Note that Pause performs both
 
 To play something new, get it on the clipboard then press Play. This works when the server is idle and also when we are currently speaking something (in which case this will stop the current text and start the new one)
 
+## 10. Fun and Notifications
+
+While you are speaking some nice long piece of text, try this:
+
+```bash
+fp --interruptwith "Dinner is ready"
+
+```
+
+Did it make you laugh?
+
+Anyway, the idea behind the interruptwith feature is that maybe you want to get a spoken alert when something happens on your system. Maybe something compiles or an error happens or something else. This let's you get a spoken alert prefixed with the notification sound (configurable, of course) and then the TTS resumes where it left off.
+
+
 ---
 
 ## Uninstalling
