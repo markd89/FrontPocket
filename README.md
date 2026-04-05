@@ -11,6 +11,11 @@ You could set hotkeys to run the CLI client passing it parameters to play, pause
 
 A Qt6-based toolbar frontpocket_toolbar.py provides a UI to play clipboard text, move forward and back and change voices and speed. It works by passing commands to frontpocket_client.py. Right click to see the speed and voice selections.
 
+<img width="193" height="31" alt="toolbar-only" src="https://github.com/user-attachments/assets/f9b78df8-39ab-4201-a4ca-e44b67c020e8" />   <img width="278" height="155" alt="toolbar-expanded" src="https://github.com/user-attachments/assets/2956ce16-f9f2-4c95-96b7-3ba547e715f5" />
+
+
+
+
 Note: Developed/tested under Debian Linux. MacOS/Windows "should" work. Please test and provide a PR for any needed fixes.
 
 Inspiration for this project comes from Kokorodoki which provides a similar featureset for Kokoro TTS. https://github.com/eel-brah/kokorodoki
