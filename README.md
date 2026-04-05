@@ -1,13 +1,15 @@
 # FrontPocket
 FrontPocket provides a front-end to Kyutai Labs Pocket TTS, including the ability to read text from the clipboard, from a text file and passed directly on the CLI. Features include the ability to pause, resume, move back and forward in the spoken text and change playback speed.
 
-It is a low-latency, daemon-based text-to-speech system, developed and tested under Linux. FrontPocket loads the TTS model once at startup and streams audio sentence by sentence, so there is minimal delay between sending text and hearing it spoken.
+It is a low-latency, daemon-based text-to-speech system, developed and tested under Linux. FrontPocket loads the TTS model once at startup and streams audio sentence by sentence, so there is minimal delay between sending text and hearing it spoken. 
 
-It is designed to be always running in the background as a systemd service. Of course, you can also run frontpocket_server.py from the CLI to use it in interactive mode. I'd suggest doing that and then running as a service once you're satisfied it is dialed-in. The server is controlled by the included lightweight CLI client. 
+Subsequent sentences are generated in advance and previous sentences are cached allow instantaneous movement backwards and forwards a few sentences.
+
+frontpocket_server.py is intended to be always running in the background as a systemd service. Of course, you can also run it from the CLI to use it in interactive mode. I'd suggest doing that and then running as a service once you're satisfied it is dialed-in. The server is controlled by the included lightweight CLI client. 
 
 You could set hotkeys to run the CLI client passing it parameters to play, pause, change speed, etc.
 
-I am developing a GUI toolbar https://github.com/markd89/FrontPocket-floatingtoolbar to do the same. With it, you just click a button to play the clipboard text, change voice, speed, etc.
+A Qt6-based toolbar frontpocket_toolbar.py provides a UI to play clipboard text, move forward and back and change voices and speed. It works by passing commands to frontpocket_client.py. Right click to see the speed and voice selections.
 
 Note: Developed/tested under Debian Linux. MacOS/Windows "should" work. Please test and provide a PR for any needed fixes.
 
@@ -35,14 +37,15 @@ Much thanks to the very smart people at Kyutai Labs for their beautiful model an
 
 ## How It Works
 
-FrontPocket has two components:
+FrontPocket has three components:
 
 | Component | File | Role |
 |---|---|---|
-| Server | `frontpocket_server.py` | Loads the model, listens on a TCP socket, plays audio |
-| Client | `frontpocket_client.py` | Sends text or commands to the server |
+| Server | `frontpocket_server.py`  | Loads the model, listens on a TCP socket, plays audio |
+| Client | `frontpocket_client.py`  | Sends text or commands to the server |
+| Toolbar| `frontpocket_toolbar.py` | Provides a UI to the sLient |
 
-The server and client communicate over a local TCP socket (default port `5562`). The client is fire-and-forget — it sends a message and exits immediately.
+The server and client communicate over a local TCP socket (default port `5562`). The client is fire-and-forget — it sends a message and exits immediately. 
 
 ---
 
@@ -200,6 +203,7 @@ journalctl -u frontpocket -f
 | `numpy` | Audio array handling |
 | `scipy` | WAV file reading (interrupt sound) |
 | `rubberband-cli` | System package required by pyrubberband |
+| `pyqt6` | UI for the toolbar |
 | `pyperclip` | Windows clipboard support (optional) |
 
 ---
