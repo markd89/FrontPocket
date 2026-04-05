@@ -31,7 +31,8 @@ Much thanks to the very smart people at Kyutai Labs for their beautiful model an
 - **Interrupt** — inject an urgent TTS message mid-playback, then resume automatically
 - **Clipboard-first** — default input is the system clipboard; also accepts inline text and text files
 - **systemd ready** — runs as a proper system service with automatic restart on failure
-- **Multilingual** — sentence segmentation supports English, German, French, Spanish, Italian, Russian, Polish, and more
+- **Multilingual** — sentence segmentation supports English, German, French, Spanish, Italian, Russian, Polish, and more. Tested with English.
+- **UI Toolbar** - Because we don't always want to be in the CLI.
 
 ---
 
