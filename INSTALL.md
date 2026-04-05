@@ -225,7 +225,7 @@ fp --version
 
 ## 9. Use the toolbar
 
-You can start the toolbar by running the following command. 
+You can start the toolbar by running the following command:
 
 ```bash
 /opt/FrontPocket/venv/bin/python3 /opt/FrontPocket/frontpocket_toolbar.py 
@@ -234,10 +234,7 @@ You can start the toolbar by running the following command.
 
 Options for Speed, Voice and Quit are right-click. Note that Pause performs both Pause and Resume based on the current state. i.e. It's a toggle.
 
-To play something new, get it on the clipboard then press Play. This works also when we are currently speaking something (in which case this will stop the current text and start the new one.
-
-
-
+To play something new, get it on the clipboard then press Play. This works when the server is idle and also when we are currently speaking something (in which case this will stop the current text and start the new one)
 
 ---
 
