@@ -30,7 +30,7 @@ import sys
 
 from frontpocket_shared import (
     BUILTIN_VOICES,
-    CMD_BACK, CMD_INTERRUPT, CMD_NEXT, CMD_PAUSE, CMD_PING,
+    CMD_BACK, CMD_INTERRUPT, CMD_NEXT, CMD_PAUSE, CMD_PING, CMD_RELOAD,
     CMD_RESUME, CMD_SPEED, CMD_STATUS, CMD_VOICE,
     MAX_SPEED, MESSAGE_ENCODING, MIN_SPEED, SOCKET_BUFFER, VERSION,
     get_settings, get_voices, load_config, setup_logging,
@@ -208,6 +208,7 @@ def parse_args(settings: dict, voices: dict):
     cmd_group.add_argument("--back",   action="store_true", help="Go back one chunk")
     cmd_group.add_argument("--status", action="store_true", help="Speak current status")
     cmd_group.add_argument("--ping",   action="store_true", help="Check server is reachable (exit 0 = up)")
+    cmd_group.add_argument("--reload", action="store_true", help="Reload the TTS model")
     cmd_group.add_argument("--list-voices", action="store_true", help="List configured voices")
     cmd_group.add_argument(
         "--interruptwith", "-i",
@@ -277,7 +278,7 @@ def main():
     messages = []
     settings_only = (args.voice is not None or args.speed is not None) and \
                     not any([args.pause, args.resume, args.next, args.back,
-                             args.status, args.ping, args.list_voices,
+                             args.status, args.ping, args.reload, args.list_voices,
                              args.interruptwith, args.file, args.text])
 
     # --- Settings changes ---
@@ -301,6 +302,11 @@ def main():
         if not quiet:
             print(f"FrontPocket server is up on {host}:{port}")
         sys.exit(0)
+
+    elif args.reload:
+        messages.append(CMD_RELOAD)
+        if not quiet:
+            print("Reload requested — model will reload in the background")
 
     elif args.pause:
         messages.append(CMD_PAUSE)
