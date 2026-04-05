@@ -44,7 +44,7 @@ FrontPocket has three components:
 |---|---|---|
 | Server | `frontpocket_server.py`  | Loads the model, listens on a TCP socket, plays audio |
 | Client | `frontpocket_client.py`  | Sends text or commands to the server |
-| Toolbar| `frontpocket_toolbar.py` | Provides a UI to the sLient |
+| Toolbar| `frontpocket_toolbar.py` | Provides a UI to talk to the client |
 
 The server and client communicate over a local TCP socket (default port `5562`). The client is fire-and-forget — it sends a message and exits immediately. 
 
