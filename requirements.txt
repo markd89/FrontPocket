@@ -4,4 +4,5 @@ pyrubberband
 sounddevice
 numpy
 scipy
+PyQt6>=6.0.0 # Used by frontpocket_toolbar.py
 # pyperclip  # Uncomment for Windows clipboard support
