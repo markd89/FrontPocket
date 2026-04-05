@@ -135,6 +135,7 @@ CMD_VOICE         = "!voice"
 CMD_SPEED         = "!speed"
 CMD_INTERRUPT     = "!interruptwith"
 CMD_PING          = "!ping"
+CMD_RELOAD        = "!reload"
 
 # Short aliases (client maps these before sending the canonical form)
 CMD_ALIASES = {
