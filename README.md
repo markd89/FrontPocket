@@ -7,9 +7,9 @@ Subsequent sentences are generated in advance and previous sentences are cached 
 
 frontpocket_server.py is intended to be always running in the background as a systemd service. Of course, you can also run it from the CLI to use it in interactive mode. I'd suggest doing that and then running as a service once you're satisfied it is dialed-in. The server is controlled by the included lightweight CLI client. 
 
-You could set hotkeys to run the CLI client passing it parameters to play, pause, change speed, etc.
+You could set hotkeys to run the CLI client passing it parameters to play, pause, change speed, etc. i.e. Ctrl-Shift-S could trigger speaking of the clipboard text.
 
-A Qt6-based toolbar frontpocket_toolbar.py provides a UI to play clipboard text, move forward and back and change voices and speed. It works by passing commands to frontpocket_client.py. Right click to see the speed and voice selections.
+A Qt6-based toolbar frontpocket_toolbar.py provides a UI to drive the CLI client - play clipboard text, move forward and back and change voices and speed.  Right click to see the speed and voice selections.
 
 Compact Toolbar:
 <img width="193" height="31" alt="toolbar-only" src="https://github.com/user-attachments/assets/f9b78df8-39ab-4201-a4ca-e44b67c020e8" /> Right click to expand toolbar:  <img width="278" height="155" alt="toolbar-expanded" src="https://github.com/user-attachments/assets/2956ce16-f9f2-4c95-96b7-3ba547e715f5" />
