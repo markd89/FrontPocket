@@ -303,6 +303,9 @@ def main():
         sys.exit(0)
 
     elif args.pause:
+        messages.append(CMD_PAUSE)
+
+    elif args.resume:
         messages.append(CMD_RESUME)
 
     elif args.next:
