@@ -17,7 +17,7 @@ Compact Toolbar:
 
 
 
-Note: Developed/tested under Debian Linux. MacOS/Windows "should" work. Please test and provide a PR for any needed fixes.
+Note: Developed/tested under Debian Linux. MacOS/Windows "should" work but hasn't been tested. Please test and provide a PR for any needed fixes.
 
 Inspiration for this project comes from Kokorodoki which provides a similar featureset for Kokoro TTS. https://github.com/eel-brah/kokorodoki
 
