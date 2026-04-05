@@ -1,4 +1,4 @@
-# FrontPocket — Installation Guide
+# FrontPocket — Installation Guide & Basic Usage
 
 FrontPocket is a low-latency text-to-speech server that pre-loads the TTS model
 and streams audio chunk by chunk. It is controlled via a lightweight CLI client
