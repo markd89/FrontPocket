@@ -52,8 +52,8 @@ class ServerState:
         self.lookahead        = settings["lookahead_chunks"]
         self.max_chunk_secs   = settings["max_chunk_duration"]
         self.interrupt_pause  = settings["interrupt_pause"]
-        self.interrupt_sound  = settings["interrupt_sound"]   # path to WAV or ""
-        self.debug_dir        = settings["debug_dir"]         # path or ""
+        self.interrupt_sound  = os.path.expanduser(settings["interrupt_sound"]) if settings["interrupt_sound"] else ""
+        self.debug_dir        = os.path.expanduser(settings["debug_dir"]) if settings["debug_dir"] else ""
         self.voices           = voices                          # {name: path_or_builtin}
 
         # Playback settings
@@ -98,6 +98,7 @@ def load_voice(state: ServerState, voice_name: str, log) -> bool:
     if path is None:
         log.info("Invalid voice: %s", voice_name)
         return False
+    path = os.path.expanduser(path)
     try:
         state.voice_state = state.tts_model.get_state_for_audio_prompt(path)
         state.voice_name  = voice_name.lower()
@@ -850,15 +851,19 @@ def main():
     log.info("FrontPocket %s starting", VERSION)
 
     # Validate voice paths — warn on missing files, skip built-ins
+    # Validate voice paths — warn on missing files, skip built-ins and ~ paths
+    # (~paths expand relative to the runtime user, not the startup context)
     for name, path in voices.items():
-        if path.lower() in BUILTIN_VOICES or not path.startswith("/"):
-            continue  # built-in or HuggingFace reference, no file to check
+        if (path.lower() in BUILTIN_VOICES or
+                path.startswith("~") or
+                not path.startswith("/") and not path.startswith("hf://")):
+            continue
         if not os.path.isfile(path):
             log.info("Warning: voice '%s' file not found: %s", name, path)
 
     # Clear stale debug chunk files
     if settings["debug_dir"] and log.isEnabledFor(10):
-        debug_dir = settings["debug_dir"]
+        debug_dir = os.path.expanduser(settings["debug_dir"])
         try:
             os.makedirs(debug_dir, exist_ok=True)
             for f in os.listdir(debug_dir):
