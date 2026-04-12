@@ -25,16 +25,13 @@ from PyQt6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout,
 from frontpocket_shared import BUILTIN_VOICES, VERSION, find_config
 
 # ---------------------------------------------------------------------------
-# Config paths
-# ---------------------------------------------------------------------------
-
-STATE_CONFIG_DIR  = os.path.expanduser("~/.config/frontpocket")
-STATE_CONFIG_PATH = os.path.join(STATE_CONFIG_DIR, "toolbar.ini")
-
-
-# ---------------------------------------------------------------------------
 # Config helpers
 # ---------------------------------------------------------------------------
+
+def get_state_path() -> str:
+    """Return path to frontpocket_state.ini, next to frontpocket.ini."""
+    return os.path.join(os.path.dirname(find_config()), "frontpocket_state.ini")
+
 
 def load_fp_config() -> configparser.ConfigParser:
     """Load the main FrontPocket config using the same search logic as the server."""
@@ -44,23 +41,23 @@ def load_fp_config() -> configparser.ConfigParser:
 
 
 def load_state() -> configparser.ConfigParser:
-    """Load per-user toolbar state, creating defaults if the file doesn't exist."""
+    """Load toolbar state from frontpocket_state.ini."""
     state = configparser.ConfigParser()
-    if os.path.exists(STATE_CONFIG_PATH):
-        state.read(STATE_CONFIG_PATH)
-    if not state.has_section("State"):
-        state.add_section("State")
+    state_path = get_state_path()
+    if os.path.exists(state_path):
+        state.read(state_path)
+    if not state.has_section("CurrentSettings"):
+        state.add_section("CurrentSettings")
     return state
 
 
 def save_state(state: configparser.ConfigParser):
-    """Save per-user toolbar state to ~/.config/frontpocket/toolbar.ini."""
-    os.makedirs(STATE_CONFIG_DIR, exist_ok=True)
+    """Save toolbar state to frontpocket_state.ini."""
     try:
-        with open(STATE_CONFIG_PATH, "w") as f:
+        with open(get_state_path(), "w") as f:
             state.write(f)
     except Exception as e:
-        print(f"Warning: could not save toolbar state: {e}")
+        print(f"Warning: could not save state: {e}")
 
 
 def get_voices(fp_config: configparser.ConfigParser) -> list[str]:
@@ -153,8 +150,8 @@ class FrontPocketToolbar(QWidget):
         super().__init__()
 
         # Load configs
-        self.fp_config    = load_fp_config()
-        self.state        = load_state()
+        self.fp_config = load_fp_config()
+        self.state     = load_state()
 
         # Toolbar settings from frontpocket.ini [Toolbar]
         t = self.fp_config
@@ -170,11 +167,11 @@ class FrontPocketToolbar(QWidget):
         self.speed_choices = get_speed_choices(self.fp_config)
         self.speed_defaults = get_speed_defaults(self.fp_config)
 
-        # Current applied settings — from saved state, fall back to ini defaults
+        # Current applied settings — from state file, fall back to ini defaults
         default_voice = self.fp_config.get("settings", "default_voice", fallback="")
         default_speed = self.fp_config.get("settings", "default_speed", fallback="")
-        self.current_voice = self.state.get("State", "voice", fallback="") or default_voice
-        self.current_speed = self.state.get("State", "speed", fallback="") or default_speed
+        self.current_voice = self.state.get("CurrentSettings", "voice", fallback="") or default_voice
+        self.current_speed = self.state.get("CurrentSettings", "speed", fallback="") or default_speed
 
         # Pending (selected in dropdown but not yet applied)
         self.pending_voice = self.current_voice
@@ -263,8 +260,8 @@ class FrontPocketToolbar(QWidget):
         self.setFixedWidth(self.width())
 
         # Position — restore saved, validate, fall back to ini default
-        saved_x = self.state.getint("State", "x", fallback=-1)
-        saved_y = self.state.getint("State", "y", fallback=-1)
+        saved_x = self.state.getint("CurrentSettings", "x", fallback=-1)
+        saved_y = self.state.getint("CurrentSettings", "y", fallback=-1)
         default_x = int(self.fp_config.get("Toolbar", "initial_x", fallback="800"))
         default_y = int(self.fp_config.get("Toolbar", "initial_y", fallback="30"))
 
@@ -552,10 +549,10 @@ class FrontPocketToolbar(QWidget):
     # -----------------------------------------------------------------------
 
     def _save_state(self):
-        self.state.set("State", "voice", self.current_voice or "")
-        self.state.set("State", "speed", self.current_speed or "")
-        self.state.set("State", "x",     str(self.x()))
-        self.state.set("State", "y",     str(self.y()))
+        self.state.set("CurrentSettings", "voice", self.current_voice or "")
+        self.state.set("CurrentSettings", "speed", self.current_speed or "")
+        self.state.set("CurrentSettings", "x",     str(self.x()))
+        self.state.set("CurrentSettings", "y",     str(self.y()))
         save_state(self.state)
 
     # -----------------------------------------------------------------------
