@@ -1,27 +1,24 @@
 # FrontPocket
 FrontPocket provides a front-end to Kyutai Labs Pocket TTS, including the ability to read text from the clipboard, from a text file and passed directly on the CLI. Features include the ability to pause, resume, move back and forward in the spoken text and change playback speed.
 
-It is a low-latency, daemon-based text-to-speech system, developed and tested under Linux. FrontPocket loads the TTS model once at startup and streams audio sentence by sentence, so there is minimal delay between sending text and hearing it spoken. 
+It is a low-latency, daemon-based text-to-speech system, developed and tested under Linux. FrontPocket loads the TTS model once at startup and streams audio sentence by sentence, so there is minimal delay between sending text and hearing it spoken.
 
 Subsequent sentences are generated in advance and previous sentences are cached allowing instantaneous movement backwards and forwards a few sentences.
 
-frontpocket_server.py is intended to be always running in the background as a systemd service. Of course, you can also run it from the CLI to use it in interactive mode. I'd suggest doing that and then running as a service once you're satisfied it is dialed-in. The server is controlled by the included lightweight CLI client. 
+`frontpocket_server.py` is intended to run in the background as a systemd service. You can also run it from the CLI for interactive use — recommended while getting it dialled-in before committing to running it as a service. The server is controlled by the included lightweight CLI client.
 
-You could set hotkeys to run the CLI client passing it parameters to play, pause, change speed, etc. i.e. Ctrl-Shift-S could trigger speaking of the clipboard text.
+You could set hotkeys to run the CLI client passing it parameters to play, pause, change speed, etc. e.g. Ctrl-Shift-S could trigger speaking of the clipboard text.
 
-A Qt6-based toolbar frontpocket_toolbar.py provides a UI to drive the CLI client - play clipboard text, move forward and back and change voices and speed.  Right click to see the speed and voice selections.
+A Qt6-based toolbar `frontpocket_toolbar.py` provides a UI to drive the CLI client — play clipboard text, move forward and back, and change voices and speed. Right-click to see the speed and voice selections.
 
 Compact Toolbar:
 <img width="193" height="31" alt="toolbar-only" src="https://github.com/user-attachments/assets/f9b78df8-39ab-4201-a4ca-e44b67c020e8" /> Right click to expand toolbar:  <img width="278" height="155" alt="toolbar-expanded" src="https://github.com/user-attachments/assets/2956ce16-f9f2-4c95-96b7-3ba547e715f5" />
 
+Note: Developed and tested under Debian Linux. macOS/Windows *should* work but has not been tested. Please test and submit a PR for any needed fixes.
 
+Inspiration for this project comes from [Kokorodoki](https://github.com/eel-brah/kokorodoki), which provides a similar feature set for Kokoro TTS.
 
-
-Note: Developed/tested under Debian Linux. MacOS/Windows "should" work but hasn't been tested. Please test and provide a PR for any needed fixes.
-
-Inspiration for this project comes from Kokorodoki which provides a similar featureset for Kokoro TTS. https://github.com/eel-brah/kokorodoki
-
-Much thanks to the very smart people at Kyutai Labs for their beautiful model and helpful reference code. Their stuff is where the <b>real magic</b> happens. https://github.com/kyutai-labs/pocket-tts 
+Much thanks to the very smart people at Kyutai Labs for their beautiful model and helpful reference code. Their work is where the **real magic** happens. https://github.com/kyutai-labs/pocket-tts
 
 
 ---
@@ -30,13 +27,15 @@ Much thanks to the very smart people at Kyutai Labs for their beautiful model an
 
 - **Low latency** — model is pre-loaded; audio begins within seconds of sending text
 - **Chunk-ahead generation** — the next several sentences are generated in the background while the current one plays
+- **Lookbehind cache** — previously played sentences are cached for instant `!back` navigation
 - **Multiple voices** — switch voices on the fly; built-in voices and custom `.safetensors` embeddings supported
 - **Speed control** — pitch-preserved speed adjustment via pyrubberband
 - **Pause / resume** — resume from exactly where you paused, even after changing voice or speed
 - **Skip forward / back** — move through sentences instantly; previously played sentences are cached
 - **Interrupt** — inject an urgent TTS message mid-playback, then resume automatically
 - **Clipboard-first** — default input is the system clipboard; also accepts inline text and text files
-- **systemd ready** — runs as a proper system service with automatic restart on failure
+- **Auto model reload** — detects bad TTS generation and reloads the model automatically
+- **systemd ready** — runs as a proper systemd user service with automatic restart on failure
 - **Multilingual** — sentence segmentation supports English, German, French, Spanish, Italian, Russian, Polish, and more. Tested with English.
 - **UI Toolbar** - Because we don't always want to be in the CLI.
 
@@ -91,7 +90,7 @@ Why no --stop? Just use pause and don't resume.
 
 | Command | Description |
 |---|---|
-| `fp --voice masha` | Change voice (takes effect immediately) |
+| `fp --voice mary` | Change voice (takes effect immediately) |
 | `fp --speed 1.5` | Change speed (0.5–3.0, takes effect immediately) |
 
 ### Interrupts & Status
@@ -117,7 +116,7 @@ Why no --stop? Just use pause and don't resume.
 
 ## Configuration
 
-FrontPocket is configured via `frontpocket.ini`. The server looks for it next to `frontpocket_server.py`, then in the current working directory. When installed as a service, symlink `/etc/FrontPocket/frontpocket.ini` into `/opt/FrontPocket/`.
+FrontPocket is configured via `frontpocket.ini`. The server looks for it next to `frontpocket_server.py`, then in the current working directory. When installed as a service, a symlink is created from ~/FrontPocket/ to ~/.config/FrontPocket/frontpocket.ini. Perform your changes in ~/.config/FrontPocket/frontpocket.ini.
 
 ### Key settings
 
@@ -129,11 +128,11 @@ port = 5562
 lookahead_chunks = 5
 language = en
 log_level = INFO
-interrupt_sound = /var/lib/FrontPocket/sounds/notification.wav
+interrupt_sound = /home/yourusername/FrontPocket/sounds/notification.wav
 
 [voices]
 alba  = alba
-mary = /var/lib/FrontPocket/voices/mary.safetensors
+mary = /home/yourusername/FrontPocket/voices/mary.safetensors
 ```
 
 See the fully commented `frontpocket.ini` for all available options.
@@ -151,7 +150,7 @@ alba = alba
 
 **Custom voices** use `.safetensors` embedding files:
 ```ini
-mary = /var/lib/FrontPocket/voices/mary.safetensors
+mary = /home/yourusername/FrontPocket/voices/mary.safetensors
 ```
 
 **Hugging Face voices** can be referenced directly:
@@ -194,7 +193,7 @@ python3 frontpocket_server.py --log-level DEBUG
 
 When running as a service, view logs with:
 ```bash
-journalctl -u frontpocket -f
+journalctl --user -u frontpocket -f
 ```
 
 ---
