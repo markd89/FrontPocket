@@ -4,7 +4,7 @@ build-backend = "setuptools.backends.legacy:build"
 
 [project]
 name = "frontpocket"
-version = "1.1.0"
+version = "1.2.0"
 description = "Low-latency daemon-based TTS for Linux"
 readme = "README.md"
 license = { text = "MIT" }

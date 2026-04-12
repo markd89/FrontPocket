@@ -1,15 +1,14 @@
 [Unit]
 Description=FrontPocket TTS Server
-After=network.target sound.target
-Wants=sound.target
+# Wait for the audio session to be available
+After=pipewire.service pipewire-pulse.service pulseaudio.service
+Wants=pipewire.service pipewire-pulse.service
 
 [Service]
 Type=simple
-User=frontpocket
-Group=audio
-WorkingDirectory=/opt/FrontPocket
-EnvironmentFile=/etc/FrontPocket/environment
-ExecStart=/opt/FrontPocket/venv/bin/python3 /opt/FrontPocket/frontpocket_server.py
+WorkingDirectory=%h/FrontPocket
+EnvironmentFile=%h/.config/FrontPocket/environment
+ExecStart=%h/FrontPocket/venv/bin/python3 %h/FrontPocket/frontpocket_server.py
 Restart=on-failure
 RestartSec=5
 
@@ -22,4 +21,4 @@ StandardError=journal
 SyslogIdentifier=frontpocket
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=default.target
