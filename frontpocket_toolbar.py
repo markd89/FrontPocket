@@ -22,11 +22,12 @@ from PyQt6.QtGui import QKeySequence, QShortcut
 from PyQt6.QtWidgets import (QApplication, QWidget, QHBoxLayout, QVBoxLayout,
                               QPushButton, QComboBox, QLabel, QMessageBox)
 
+from frontpocket_shared import BUILTIN_VOICES, VERSION, find_config
+
 # ---------------------------------------------------------------------------
 # Config paths
 # ---------------------------------------------------------------------------
 
-FP_CONFIG_PATH    = "/etc/FrontPocket/frontpocket.ini"
 STATE_CONFIG_DIR  = os.path.expanduser("~/.config/frontpocket")
 STATE_CONFIG_PATH = os.path.join(STATE_CONFIG_DIR, "toolbar.ini")
 
@@ -36,13 +37,9 @@ STATE_CONFIG_PATH = os.path.join(STATE_CONFIG_DIR, "toolbar.ini")
 # ---------------------------------------------------------------------------
 
 def load_fp_config() -> configparser.ConfigParser:
-    """Load the main FrontPocket config. Exits with a clear error if missing."""
-    if not os.path.exists(FP_CONFIG_PATH):
-        print(f"Error: FrontPocket config not found at {FP_CONFIG_PATH}")
-        print("Please install FrontPocket and ensure the config file exists.")
-        sys.exit(1)
+    """Load the main FrontPocket config using the same search logic as the server."""
     config = configparser.ConfigParser()
-    config.read(FP_CONFIG_PATH)
+    config.read(find_config())
     return config
 
 
@@ -166,6 +163,7 @@ class FrontPocketToolbar(QWidget):
         self.confirm_quit   = t.getboolean("Toolbar", "confirm_quit", fallback=True)
         self.animate        = t.getboolean("Toolbar", "animation",    fallback=True)
         self.record_command = t.get("Toolbar", "record", fallback="").strip()
+        self.always_send_voice_speed = t.getboolean("Toolbar", "always_send_voice_speed", fallback=True)
 
         # Voice/speed data
         self.voices        = get_voices(self.fp_config)
@@ -376,6 +374,13 @@ class FrontPocketToolbar(QWidget):
 
     def _on_button(self, key: str):
         if key == "play":
+            # Optionally re-send voice and speed before playing to resync
+            # server state after a restart
+            if self.always_send_voice_speed:
+                if self.current_voice:
+                    self._run(f"--voice {self.current_voice}")
+                if self.current_speed:
+                    self._run(f"--speed {self.current_speed}")
             # Always send clipboard — starts new text whether idle, playing, or paused
             self._run()
             self.play_state = "playing"
