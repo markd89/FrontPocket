@@ -108,7 +108,7 @@ cp ~/FrontPocket/notification.wav ~/FrontPocket/sounds/
 ```
 
 ```ini
-interrupt_sound = /home/yourusername/FrontPocket/sounds/notification.wav
+interrupt_sound = ~/FrontPocket/sounds/notification.wav
 ```
 
 ### Hugging Face token
@@ -161,7 +161,7 @@ add entries to the `[voices]` section of `frontpocket.ini`:
 ```ini
 [voices]
 alba  = alba
-mary  = /home/yourusername/FrontPocket/voices/mary.safetensors
+mary  = ~/FrontPocket/voices/mary.safetensors
 ```
 
 ---
