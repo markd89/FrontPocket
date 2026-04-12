@@ -11,6 +11,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Discussion: Changing from Systemd Service with a limited permissions user to User Service
 - Testing of 1.1.0 showed that the previous method of running as a system service using a dedicated limited permissions user was flawed. In that scenario, the limited user needed access to the audio of user 1000. There are ways to do that but they added complexity and were not going to work consistently across diverse environments. Put another way, it's not enough for it to work for me, it needs to work for you as well and with minimal hassle. Running as a user service inherently has access to your audio device. Code should have the minimal security needed to do it's job and by dropping the limited permissions user we tradeoff some of that. It's a local TTS Server. For those less compomising on security, it is possible to run it with Firejail and should be possible with Docker.
+- Moving from to a user service meant that it no longer made sense to store the project under /opt/FrontPocket so it's moved under ~/FrontPocket.
+- README.md, INSTALL.md, frontpocket.service were updated to accomodate these changes.
 
 ### Toolbar
 - Always send Speed and Voice when we start playing. Resolves condition where if the server restarted after toolbar is already running which can result in the server playing in a different voice than shown in the toolbar. New ini option under [SpeedDefaults] always_send_voice_speed = false can disable this behavior.
