@@ -104,7 +104,7 @@ To use a notification sound before interrupt messages, copy your WAV file and
 set the path in `frontpocket.ini`:
 
 ```bash
-cp /path/to/notification.wav ~/FrontPocket/sounds/
+cp ~/FrontPocket/notification.wav ~/FrontPocket/sounds/
 ```
 
 ```ini
@@ -239,7 +239,7 @@ fp --pause
 fp --resume
 fp --next
 fp --back
-fp --voice maria
+fp --voice mary
 fp --speed 1.5
 fp --status
 fp --interruptwith "Dinner is ready"
