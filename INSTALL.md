@@ -97,7 +97,8 @@ mkdir -p ~/FrontPocket/sounds
 ```
 
 Place any custom voice embeddings in `~/FrontPocket/voices/` and any
-notification sounds in `~/FrontPocket/sounds/`. We provice a sample notification.wav with the package.
+notification sounds in `~/FrontPocket/sounds/`. 
+We provide a sample notification.wav with the package.
 
 To use a notification sound before interrupt messages, copy your WAV file and
 set the path in `frontpocket.ini`:
