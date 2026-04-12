@@ -2,29 +2,40 @@
 
 FrontPocket is a low-latency text-to-speech server that pre-loads the TTS model
 and streams audio chunk by chunk. It is controlled via a lightweight CLI client
-over a TCP socket, and can run as a systemd service.
+over a TCP socket, and runs as a systemd user service in your desktop session.
 
-The instructions below setup a VENV, put everything in the right directories with the correct permissions and setup the systemd service. That's what's recommended. For those who just want to play with it interactively, it should be possible to clone the project into a folder on your machine, install the requirements and then run ```python3 frontpocket_server.py``` Then from another CLI, you can run  ```python3 frontpocket_client.py``` passing parameters. If you want to go this way, you're suggested to skim the full instructions anyway. 
+The instructions below set up a venv, put everything in the right directories,
+and configure the systemd user service. That's the recommended path. If you just
+want to try it interactively first, clone the repo, install the requirements, and
+run `python3 frontpocket_server.py` directly. From another terminal, run
+`python3 frontpocket_client.py` with parameters. Either way, skim the full
+instructions — they contain useful context.
 
 ---
 
 ## Requirements
 
-- Linux (tested under Debian). Other distros and MacOS, Windows may work with a little persuasion. Please make a PR with fixes.
+- Linux (tested under Debian). Other distros may work with minor adjustments.
+  MacOS and Windows are untested. PRs welcome.
 - Python 3.10+
 - ALSA audio (`libasound2`)
 - `rubberband-cli` (for speed adjustment)
 - `xclip` (X11) or `wl-clipboard` (Wayland) for clipboard support
+- A desktop session (the service uses your audio session directly)
 
 ---
 
-## 1. Create the system user
-
-FrontPocket runs as a dedicated unprivileged user with access to the audio device.
+## 1. Install system dependencies
 
 ```bash
-sudo useradd -r -s /sbin/nologin -d /opt/FrontPocket frontpocket
-sudo usermod -aG audio frontpocket
+sudo apt install libasound2-dev rubberband-cli xclip
+```
+
+For Wayland clipboard support, install `wl-clipboard` instead of or in addition
+to `xclip`:
+
+```bash
+sudo apt install wl-clipboard
 ```
 
 ---
@@ -43,147 +54,158 @@ sudo apt install wl-clipboard
 
 ---
 
-## 3. Create the application directory
+## 2. Create the application directory
+
+Clone the repo into your home directory:
 
 ```bash
-sudo mkdir -p /opt/FrontPocket
-sudo git clone https://github.com/yourusername/FrontPocket.git /opt/FrontPocket
-sudo chown -R frontpocket:frontpocket /opt/FrontPocket
+git clone https://github.com/markd89/FrontPocket.git ~/FrontPocket
 ```
 
 ---
 
-## 4. Create the Python virtual environment and install dependencies
+## 3. Create the Python virtual environment and install dependencies
 
 ```bash
-sudo -u frontpocket python3 -m venv /opt/FrontPocket/venv
+python3 -m venv ~/FrontPocket/venv
 ```
 
-Install CPU-only PyTorch first to avoid downloading large CUDA packages: (If you want CUDA/GPU skip this step)
+Install CPU-only PyTorch first to avoid downloading large CUDA packages (skip
+this step if you want CUDA/GPU support):
 
 ```bash
-sudo -u frontpocket /opt/FrontPocket/venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
+~/FrontPocket/venv/bin/pip install torch --index-url https://download.pytorch.org/whl/cpu
 ```
 
 Then install the remaining dependencies:
 
 ```bash
-sudo -u frontpocket /opt/FrontPocket/venv/bin/pip install -r /opt/FrontPocket/requirements.txt
+~/FrontPocket/venv/bin/pip install -r ~/FrontPocket/requirements.txt
 ```
 
-Note: the full path to `pip` is used deliberately — no need to activate the venv
-for this step. Calling the binary directly ensures packages install into the
-correct venv.
+The full path to `pip` is used deliberately — no need to activate the venv.
+Calling the binary directly ensures packages install into the correct venv.
 
 ---
 
-## 5. Create directories for config and voices and Hugging Face Token environment variable. 
+## 4. Create directories for config, voices, and sounds
 
 ```bash
-sudo mkdir -p /etc/FrontPocket
-sudo mkdir -p /var/lib/FrontPocket/voices
-sudo mkdir -p /var/lib/FrontPocket/sounds
-sudo chown -R frontpocket:frontpocket /var/lib/FrontPocket
+mkdir -p ~/.config/FrontPocket
+mkdir -p ~/FrontPocket/voices
+mkdir -p ~/FrontPocket/sounds
 ```
-Place any custom voice embeddings in `/var/lib/FrontPocket/voices/` and any
-notification sounds in `/var/lib/FrontPocket/sounds/`.
+
+Place any custom voice embeddings in `~/FrontPocket/voices/` and any
+notification sounds in `~/FrontPocket/sounds/`.
 
 To use a notification sound before interrupt messages, copy your WAV file and
 set the path in `frontpocket.ini`:
 
 ```bash
-sudo cp /opt/FrontPocket/notification.wav /var/lib/FrontPocket/sounds/
-sudo chown frontpocket:frontpocket /var/lib/FrontPocket/sounds/notification.wav
+cp /path/to/notification.wav ~/FrontPocket/sounds/
 ```
 
 ```ini
-interrupt_sound = /var/lib/FrontPocket/sounds/notification.wav
+interrupt_sound = /home/yourusername/FrontPocket/sounds/notification.wav
 ```
 
 ### Hugging Face token
 
 FrontPocket needs a Hugging Face token to download the TTS model on first run.
-If you want to use the voice-cloning feature of Pocket-TTS, you'll need to follow
-the insuctructions on their project and generate the HF Token. The following steps
-allow you to store that token securely and have it referenced by the service.
- 
-Create a secure environment file that the service will read at startup:
+If you want to use the voice-cloning feature of Pocket-TTS, follow their
+instructions to generate an HF token. The following steps store it securely
+for the service to read at startup.
+
+Create a private environment file:
 
 ```bash
-sudo touch /etc/FrontPocket/environment
-sudo chmod 600 /etc/FrontPocket/environment
-sudo chown frontpocket:frontpocket /etc/FrontPocket/environment
+touch ~/.config/FrontPocket/environment
+chmod 600 ~/.config/FrontPocket/environment
 ```
 
 Add your token:
 
 ```bash
-echo "HF_TOKEN=your_token_here" | sudo tee /etc/FrontPocket/environment
-sudo chmod 600 /etc/FrontPocket/environment
+echo "HF_TOKEN=your_token_here" >> ~/.config/FrontPocket/environment
 ```
-
-The service file references this file via `EnvironmentFile=` so the token is
-never visible in process listings or world-readable service files.
 
 ---
 
-## 6. Install and edit the configuration file
+## 5. Install and edit the configuration file
 
-Copy the template from the repo into `/etc/FrontPocket/`, remove the original,
-then create a symlink so the server can find it:
-
-```bash
-sudo cp /opt/FrontPocket/frontpocket.ini /etc/FrontPocket/frontpocket.ini
-sudo rm /opt/FrontPocket/frontpocket.ini
-sudo ln -s /etc/FrontPocket/frontpocket.ini /opt/FrontPocket/frontpocket.ini
-```
-
-Now edit the config in its canonical location:
+Copy the template into your config directory and symlink it so the server can
+find it:
 
 ```bash
-sudo nano /etc/FrontPocket/frontpocket.ini
+cp ~/FrontPocket/frontpocket.ini ~/.config/FrontPocket/frontpocket.ini
+rm ~/FrontPocket/frontpocket.ini
+ln -s ~/.config/FrontPocket/frontpocket.ini ~/FrontPocket/frontpocket.ini
 ```
 
-All future edits should be made to `/etc/FrontPocket/frontpocket.ini`. The
-symlink in `/opt/FrontPocket/` should never be edited directly.
+Edit the config in its canonical location:
+
+```bash
+nano ~/.config/FrontPocket/frontpocket.ini
+```
+
+All future edits should be made to `~/.config/FrontPocket/frontpocket.ini`.
+The symlink in `~/FrontPocket/` should never be edited directly.
 
 ### Adding custom voices
 
-Copy your `.safetensors` voice embedding files to `/var/lib/FrontPocket/voices/`,
-then add entries to the `[voices]` section of `frontpocket.ini`:
+Copy your `.safetensors` voice embedding files to `~/FrontPocket/voices/`, then
+add entries to the `[voices]` section of `frontpocket.ini`:
 
 ```ini
 [voices]
-alba   = alba
-mary  = /var/lib/FrontPocket/voices/mary.safetensors
+alba  = alba
+mary  = /home/yourusername/FrontPocket/voices/mary.safetensors
 ```
 
 ---
 
-## 7. Install the systemd service
+## 6. Install the systemd user service
 
 ```bash
-sudo cp /opt/FrontPocket/frontpocket.service /etc/systemd/system/
-sudo systemctl daemon-reload
-sudo systemctl enable frontpocket
-sudo systemctl start frontpocket
+mkdir -p ~/.config/systemd/user
+cp ~/FrontPocket/frontpocket.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable frontpocket
+systemctl --user start frontpocket
 ```
 
-Check that the service started successfully (NOTE: First start may take several minutes as the model is downloaded from Hugging Face. Subsequent startups should be just a few seconds.):
+Check that the service started successfully. The first start may take several
+minutes while the model downloads from Hugging Face. Subsequent startups should
+take only a few seconds:
 
 ```bash
-sudo systemctl status frontpocket
+systemctl --user status frontpocket
 ```
 
 Follow live logs:
 
 ```bash
-journalctl -u frontpocket -f
+journalctl --user -u frontpocket -f
 ```
+
+### Optional: start on boot before login
+
+By default the user service only runs while you are logged in. If you want
+FrontPocket to start at boot even without an active desktop session, enable
+user lingering:
+
+```bash
+loginctl enable-linger $USER
+```
+
+Note: audio will still require your PulseAudio or PipeWire session to be
+running. Lingering is most useful if you have a persistent audio session
+(e.g. a headless setup with a virtual sink).
 
 ---
 
-## 8. Make the client available system-wide
+## 7. Make the client available system-wide
 
 Create a simple wrapper script so `fp` works from any terminal without
 activating the venv:
@@ -191,7 +213,7 @@ activating the venv:
 ```bash
 sudo tee /usr/local/bin/fp > /dev/null << 'EOF'
 #!/bin/bash
-exec /opt/FrontPocket/venv/bin/python3 /opt/FrontPocket/frontpocket_client.py "$@"
+exec ~/FrontPocket/venv/bin/python3 ~/FrontPocket/frontpocket_client.py "$@"
 EOF
 sudo chmod +x /usr/local/bin/fp
 ```
@@ -207,11 +229,11 @@ fp --list-voices
 Then use it from anywhere:
 
 ```bash
-fp                                   # speak clipboard contents
-fp "Hello world"                     # speak inline text
-fp --file article.txt                # speak a text file
-fp --ping                            # check server is reachable
-fp --list-voices                     # show configured voices
+fp                                    # speak clipboard contents
+fp "Hello world"                      # speak inline text
+fp --file article.txt                 # speak a text file
+fp --ping                             # check server is reachable
+fp --list-voices                      # show configured voices
 fp --pause
 fp --resume
 fp --next
@@ -223,22 +245,28 @@ fp --interruptwith "Dinner is ready"
 fp --version
 ```
 
-## 9. Use the toolbar
+---
 
-You can start the toolbar by running the following command:
+## 8. Use the toolbar
+
+Start the toolbar with:
 
 ```bash
-/opt/FrontPocket/venv/bin/python3 /opt/FrontPocket/frontpocket_toolbar.py 
-
+~/FrontPocket/venv/bin/python3 ~/FrontPocket/frontpocket_toolbar.py
 ```
 
-Options for Speed, Voice and Quit are right-click. Note that Pause performs both Pause and Resume based on the current state. i.e. It's a toggle.
+Speed, Voice, and Quit are on the right-click menu. Pause toggles between
+pause and resume based on current state.
 
-To play something new, get it on the clipboard then press Play. This works when the server is idle and also when we are currently speaking something (in which case this will stop the current text and start the new one)
+To speak something new, copy it to the clipboard then press Play. This works
+whether the server is idle or currently speaking — in the latter case it stops
+the current text and starts the new one.
+
+---
 
 ## 10. Fun and Notifications
 
-While you are speaking some nice long piece of text, try this:
+While you are speaking some nice long piece of text, try:
 
 ```bash
 fp --interruptwith "Dinner is ready"
@@ -255,14 +283,13 @@ Anyway, the idea behind the interruptwith feature is that maybe you want to get 
 ## Uninstalling
 
 ```bash
-sudo systemctl stop frontpocket
-sudo systemctl disable frontpocket
-sudo rm /etc/systemd/system/frontpocket.service
-sudo systemctl daemon-reload
-sudo rm -rf /opt/FrontPocket
-sudo rm -rf /var/lib/FrontPocket
-sudo rm -f /etc/FrontPocket/frontpocket.ini
-sudo userdel frontpocket
+systemctl --user stop frontpocket
+systemctl --user disable frontpocket
+rm ~/.config/systemd/user/frontpocket.service
+systemctl --user daemon-reload
+rm -rf ~/FrontPocket
+rm -rf ~/.config/FrontPocket
+sudo rm -f /usr/local/bin/fp
 ```
 
 ---
@@ -270,30 +297,38 @@ sudo userdel frontpocket
 ## Troubleshooting
 
 **Server won't start / model fails to load**
-Check logs: `journalctl -u frontpocket -n 50`
-
-**No audio / ALSA errors**
-Ensure the `frontpocket` user is in the `audio` group:
+Check logs:
 ```bash
-sudo usermod -aG audio frontpocket
-sudo systemctl restart frontpocket
+journalctl --user -u frontpocket -n 50
+```
+
+**No audio**
+The service runs as your user and uses your desktop audio session directly.
+Make sure your desktop session is active and audio works for other apps. If
+you're running under Wayland with PipeWire, confirm PipeWire is running:
+```bash
+systemctl --user status pipewire pipewire-pulse
 ```
 
 **Client can't connect**
-Make sure the server is running and the port in `frontpocket.ini` matches on both sides:
+Make sure the server is running and the port in `frontpocket.ini` matches on
+both sides:
 ```bash
-sudo systemctl status frontpocket
-fp --status
+systemctl --user status frontpocket
+fp --ping
 ```
+
 **HF_TOKEN not being picked up / unauthenticated requests warning**
 systemd's `EnvironmentFile` requires strict `KEY=value` format. Check the file:
 ```bash
-sudo cat -A /etc/FrontPocket/environment
+cat -A ~/.config/FrontPocket/environment
 ```
 Lines must end with `$` only. Common problems: quotes around the value
 (`HF_TOKEN="abc"` should be `HF_TOKEN=abc`), spaces around `=`, or Windows
-line endings (`^M$`). Fix the file then restart the service.
-
+line endings (`^M$`). Fix the file then restart the service:
+```bash
+systemctl --user restart frontpocket
+```
 
 **PortAudio timeout warnings**
 These are intermittent ALSA timing warnings and are not fatal. If they occur
