@@ -128,11 +128,11 @@ port = 5562
 lookahead_chunks = 5
 language = en
 log_level = INFO
-interrupt_sound = /home/yourusername/FrontPocket/sounds/notification.wav
+interrupt_sound = ~/FrontPocket/sounds/notification.wav
 
 [voices]
 alba  = alba
-mary = /home/yourusername/FrontPocket/voices/mary.safetensors
+mary = ~/FrontPocket/voices/mary.safetensors
 ```
 
 See the fully commented `frontpocket.ini` for all available options.
@@ -150,7 +150,7 @@ alba = alba
 
 **Custom voices** use `.safetensors` embedding files:
 ```ini
-mary = /home/yourusername/FrontPocket/voices/mary.safetensors
+mary = ~/FrontPocket/voices/mary.safetensors
 ```
 
 **Hugging Face voices** can be referenced directly:
