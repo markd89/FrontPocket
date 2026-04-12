@@ -264,7 +264,7 @@ the current text and starts the new one.
 
 ---
 
-## 10. Fun and Notifications
+## 9. Fun and Notifications
 
 While you are speaking some nice long piece of text, try:
 
