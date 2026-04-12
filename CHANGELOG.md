@@ -6,6 +6,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+
+## [1.2.0] — 2026-04-11
+
+### Toolbar
+1. Always send Speed and Voice when we start playing. Resolves condition where server restarted after toolbar running resuling in inconsistent voices. New ini option under [SpeedDefaults] always_send_voice_speed = false can disable this behavior.
+
+2. Fix locations searched for frontpocket.ini so that we're consistent with locations searched by server and client. 
+
+
+
 ## [1.1.0] — 2026-04-05
 
 Initial public release.
