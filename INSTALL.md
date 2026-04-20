@@ -54,7 +54,7 @@ sudo apt install wl-clipboard
 
 ---
 
-## 2. Create the application directory
+## 3. Create the application directory
 
 Clone the repo into your home directory:
 
@@ -64,7 +64,7 @@ git clone https://github.com/markd89/FrontPocket.git ~/FrontPocket
 
 ---
 
-## 3. Create the Python virtual environment and install dependencies
+## 4. Create the Python virtual environment and install dependencies
 
 ```bash
 python3 -m venv ~/FrontPocket/venv
@@ -88,7 +88,7 @@ Calling the binary directly ensures packages install into the correct venv.
 
 ---
 
-## 4. Create directories for config, voices, and sounds
+## 5. Create directories for config, voices, and sounds
 
 ```bash
 mkdir -p ~/.config/FrontPocket
@@ -133,7 +133,7 @@ echo "HF_TOKEN=your_token_here" >> ~/.config/FrontPocket/environment
 
 ---
 
-## 5. Install and edit the configuration file
+## 6. Install and edit the configuration file
 
 Copy the template into your config directory and symlink it so the server can
 find it:
@@ -166,7 +166,7 @@ mary  = ~/FrontPocket/voices/mary.safetensors
 
 ---
 
-## 6. Install the systemd user service
+## 7. Install the systemd user service
 
 ```bash
 mkdir -p ~/.config/systemd/user
@@ -206,7 +206,7 @@ running. Lingering is most useful if you have a persistent audio session
 
 ---
 
-## 7. Make the client available system-wide
+## 8. Make the client available system-wide
 
 Create a simple wrapper script so `fp` works from any terminal without
 activating the venv:
@@ -248,7 +248,7 @@ fp --version
 
 ---
 
-## 8. Use the toolbar
+## 9. Use the toolbar
 
 Start the toolbar with:
 
@@ -265,7 +265,7 @@ the current text and starts the new one.
 
 ---
 
-## 9. Fun and Notifications
+## 10. Fun and Notifications
 
 While you are speaking some nice long piece of text, try:
 
