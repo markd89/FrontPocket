@@ -23,24 +23,9 @@ instructions — they contain useful context.
 - `xclip` (X11) or `wl-clipboard` (Wayland) for clipboard support
 - A desktop session (the service uses your audio session directly)
 
----
+
 
 ## 1. Install system dependencies
-
-```bash
-sudo apt install libasound2-dev rubberband-cli xclip
-```
-
-For Wayland clipboard support, install `wl-clipboard` instead of or in addition
-to `xclip`:
-
-```bash
-sudo apt install wl-clipboard
-```
-
----
-
-## 2. Install system dependencies
 
 ```bash
 sudo apt install libasound2-dev rubberband-cli xclip
@@ -54,7 +39,7 @@ sudo apt install wl-clipboard
 
 ---
 
-## 3. Create the application directory
+## 2. Create the application directory
 
 Clone the repo into your home directory:
 
@@ -64,7 +49,7 @@ git clone https://github.com/markd89/FrontPocket.git ~/FrontPocket
 
 ---
 
-## 4. Create the Python virtual environment and install dependencies
+## 3. Create the Python virtual environment and install dependencies
 
 ```bash
 python3 -m venv ~/FrontPocket/venv
@@ -88,7 +73,7 @@ Calling the binary directly ensures packages install into the correct venv.
 
 ---
 
-## 5. Create directories for config, voices, and sounds
+## 4. Create directories for config, voices, and sounds
 
 ```bash
 mkdir -p ~/.config/FrontPocket
@@ -133,7 +118,7 @@ echo "HF_TOKEN=your_token_here" >> ~/.config/FrontPocket/environment
 
 ---
 
-## 6. Install and edit the configuration file
+## 5. Install and edit the configuration file
 
 Copy the template into your config directory and symlink it so the server can
 find it:
@@ -166,7 +151,7 @@ mary  = ~/FrontPocket/voices/mary.safetensors
 
 ---
 
-## 7. Install the systemd user service
+## 6. Install the systemd user service
 
 ```bash
 mkdir -p ~/.config/systemd/user
@@ -206,7 +191,7 @@ running. Lingering is most useful if you have a persistent audio session
 
 ---
 
-## 8. Make the client available system-wide
+## 7. Make the client available system-wide
 
 Create a simple wrapper script so `fp` works from any terminal without
 activating the venv:
@@ -248,7 +233,7 @@ fp --version
 
 ---
 
-## 9. Use the toolbar
+## 8. Use the toolbar
 
 Start the toolbar with:
 
@@ -265,7 +250,7 @@ the current text and starts the new one.
 
 ---
 
-## 10. Fun and Notifications
+## 9. Fun and Notifications
 
 While you are speaking some nice long piece of text, try:
 
