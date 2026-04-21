@@ -17,7 +17,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Change server audio playback to use sd.OutputStream in place of sd.play and sd.stop
 - Resolves resource leak with multiple streams as different chunks are played.
 
-### Fixed duplicated Step #2 in INSTALL.md
+### Fix duplicated Step #2 in INSTALL.md
 
 ---
 
