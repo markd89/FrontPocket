@@ -498,24 +498,32 @@ def playback_worker(state: ServerState, log):
             start_time         = time.time()
             sr                 = state.sample_rate
 
-            # Brief stop + settle before starting new stream to avoid ALSA timeout
-            sd.stop()
-            time.sleep(0.1)
-            sd.play(play_audio, samplerate=sr)
+            # Use explicit OutputStream so the stream is always fully closed
+            # after each chunk — prevents ALSA stream accumulation over time.
+            BLOCK_SIZE = 1024  # frames per write, small enough for responsive pause/skip
+            pos = 0
+            try:
+                with sd.OutputStream(samplerate=sr, channels=1,
+                                     dtype='float32', blocksize=BLOCK_SIZE) as stream:
+                    while pos < len(play_audio):
+                        # Check for pause or skip before each block
+                        with state.lock:
+                            current_status = state.status
+                        if current_status == "paused" or state.skip_event.is_set():
+                            break
 
-            # Poll while playing
-            while sd.get_stream().active:
-                # Check for pause
-                with state.lock:
-                    current_status = state.status
-
-                if current_status == "paused" or state.skip_event.is_set():
-                    sd.stop()
-                    break
-
-                time.sleep(0.05)
-            else:
-                finished_naturally = True
+                        block = play_audio[pos:pos + BLOCK_SIZE]
+                        # Pad last block if needed
+                        if len(block) < BLOCK_SIZE:
+                            block = np.pad(block, (0, BLOCK_SIZE - len(block)))
+                        stream.write(block)
+                        pos += BLOCK_SIZE
+                    else:
+                        finished_naturally = True
+            except Exception as stream_err:
+                log.info("Stream error on chunk %d: %s", idx, stream_err)
+                time.sleep(0.1)
+                continue
 
             # Update sample offset
             elapsed_samples = int((time.time() - start_time) * sr) + offset
@@ -680,10 +688,9 @@ def _play_wav_file(path: str, log):
         # Mix to mono if stereo
         if data.ndim == 2:
             data = data.mean(axis=1)
-        sd.stop()
-        time.sleep(0.1)
-        sd.play(data, samplerate=sr)
-        sd.wait()
+        channels = 1
+        with sd.OutputStream(samplerate=sr, channels=channels, dtype='float32') as stream:
+            stream.write(data)
     except Exception as e:
         log.debug("Could not play interrupt sound %s: %s", path, e)
 
@@ -717,10 +724,8 @@ def _do_interrupt(text: str, state: ServerState, log):
         if speed != 1.0:
             audio = rb.time_stretch(audio, sr, rate=speed)
         audio = audio.astype(np.float32)
-        sd.stop()
-        time.sleep(0.1)
-        sd.play(audio, samplerate=sr)
-        sd.wait()
+        with sd.OutputStream(samplerate=sr, channels=1, dtype='float32') as stream:
+            stream.write(audio)
     except Exception as e:
         log.info("Interrupt playback error: %s", e)
 
@@ -741,8 +746,6 @@ def _do_interrupt(text: str, state: ServerState, log):
 def handle_text(text: str, source: str, state: ServerState, log):
     """Replace current queue with new text and begin playback."""
     log.info("Speaking text from %s", source)
-
-    sd.stop()
 
     chunks = chunk_text(
         text,
