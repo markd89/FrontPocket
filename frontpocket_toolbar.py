@@ -177,9 +177,8 @@ class FrontPocketToolbar(QWidget):
         self.pending_voice = self.current_voice
         self.pending_speed = self.current_speed
 
-        # Playback state — assume playing so pause/resume toggle works correctly
-        # from first button press. A stray --pause on an idle server is harmless.
-        self.play_state = "playing"
+        # Playback state: "playing" | "paused" | "stopped"
+        self.play_state = "stopped"
 
         # Expansion state
         self.expanded        = False
@@ -232,7 +231,7 @@ class FrontPocketToolbar(QWidget):
             buttons.append(("record", "⏺", "Record"))
         buttons += [
             ("rewind",       "⏮", "Back"),
-            ("play",         "▶", "Play clipboard"),
+            ("play",         "▶", "Play / Resume"),
             ("pause",        "⏸", "Pause"),
             ("stop",         "⏹", "Stop"),
             ("fast_forward", "⏭", "Next"),
@@ -371,17 +370,59 @@ class FrontPocketToolbar(QWidget):
 
     def _on_button(self, key: str):
         if key == "play":
-            # Optionally re-send voice and speed before playing to resync
-            # server state after a restart
-            if self.always_send_voice_speed:
-                if self.current_voice:
-                    self._run(f"--voice {self.current_voice}")
-                if self.current_speed:
-                    self._run(f"--speed {self.current_speed}")
-            # Always send clipboard — starts new text whether idle, playing, or paused
-            self._run()
+            if self.play_state == "paused":
+                # Resume from where we left off
+                self._run("--resume")
+                self.play_state = "playing"
+                print("Toolbar: Resume")
+            else:
+                # Idle or stopped — start new clipboard text
+                if self.always_send_voice_speed:
+                    if self.current_voice:
+                        self._run(f"--voice {self.current_voice}")
+                    if self.current_speed:
+                        self._run(f"--speed {self.current_speed}")
+                self._run()
+                self.play_state = "playing"
+                print("Toolbar: Play (clipboard)")
+
+        elif key == "pause":
+            if self.play_state == "playing":
+                self._run("--pause")
+                self.play_state = "paused"
+                print("Toolbar: Pause")
+            elif self.play_state == "paused":
+                # Pause toggles to resume
+                self._run("--resume")
+                self.play_state = "playing"
+                print("Toolbar: Resume (via pause)")
+            # stopped — pause does nothing
+            self._update_pause_tooltip()
+
+        elif key == "stop":
+            if self.play_state in ("playing", "paused"):
+                self._run("--pause")
+                self.play_state = "stopped"
+                print("Toolbar: Stop")
+            # already stopped — nothing to do
+            self._update_pause_tooltip()
+
+        elif key == "rewind":
+            self._run("--back")
             self.play_state = "playing"
-            print("Toolbar: Play (clipboard)")
+            print("Toolbar: Back")
+
+        elif key == "fast_forward":
+            self._run("--next")
+            self.play_state = "playing"
+            print("Toolbar: Next")
+
+        elif key == "record":
+            try:
+                subprocess.Popen(self.record_command, shell=True)
+                print("Toolbar: Record")
+            except Exception as e:
+                print(f"Toolbar: Error running record command: {e}")
 
         elif key in ("pause", "stop"):
             if self.play_state == "paused":
@@ -423,9 +464,20 @@ class FrontPocketToolbar(QWidget):
 
     def _update_pause_tooltip(self):
         """Update pause/stop button tooltips to reflect current play state."""
-        tip = "Resume" if self.play_state == "paused" else "Pause"
+        if self.play_state == "paused":
+            pause_tip = "Resume"
+            stop_tip  = "Stop"
+        elif self.play_state == "stopped":
+            pause_tip = "Pause"
+            stop_tip  = "Stopped"
+        else:
+            pause_tip = "Pause"
+            stop_tip  = "Stop"
         for btn in self._pause_buttons:
-            btn.setToolTip(tip)
+            if btn.text() == "⏸":
+                btn.setToolTip(pause_tip)
+            elif btn.text() == "⏹":
+                btn.setToolTip(stop_tip)
 
     # -----------------------------------------------------------------------
     # Dropdown handlers
