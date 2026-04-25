@@ -8,7 +8,7 @@ import logging
 import os
 import sys
 
-VERSION = "1.3.0"
+VERSION = "1.4.0"
 
 # ---------------------------------------------------------------------------
 # Config loading
@@ -43,6 +43,7 @@ DEFAULT_HOST            = "127.0.0.1"
 DEFAULT_LOG_LEVEL       = "INFO"
 DEFAULT_INTERRUPT_SOUND = ""
 DEFAULT_DEBUG_DIR       = ""
+DEFAULT_SENTENCE_GAP_MS = 150
 
 # Voice names that are built in to the TTS engine and need no file path.
 BUILTIN_VOICES = {
@@ -75,6 +76,7 @@ def get_settings(config: configparser.ConfigParser) -> dict:
         "log_level":          s.get("log_level", DEFAULT_LOG_LEVEL).upper(),
         "interrupt_sound":    s.get("interrupt_sound", DEFAULT_INTERRUPT_SOUND),
         "debug_dir":          s.get("debug_dir", DEFAULT_DEBUG_DIR),
+        "sentence_gap_ms":    int(s.get("sentence_gap_ms", DEFAULT_SENTENCE_GAP_MS)),
     }
 
 
