@@ -43,7 +43,7 @@ DEFAULT_HOST            = "127.0.0.1"
 DEFAULT_LOG_LEVEL       = "INFO"
 DEFAULT_INTERRUPT_SOUND = ""
 DEFAULT_DEBUG_DIR       = ""
-DEFAULT_SENTENCE_GAP_MS = 150
+DEFAULT_SENTENCE_GAP_MS = 75
 
 # Voice names that are built in to the TTS engine and need no file path.
 BUILTIN_VOICES = {
