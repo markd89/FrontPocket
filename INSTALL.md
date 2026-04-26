@@ -23,13 +23,13 @@ instructions — they contain useful context.
 - `xclip` (X11) or `wl-clipboard` (Wayland) for clipboard support
 - A desktop session (the service uses your audio session directly)
 - python3-venv (Debian and Ubuntu need to install this. Arch & Fedora package it with python3)
-
+- PyQt6 for Toolbar GUI
 
 
 ## 1. Install system dependencies
 
 ```bash
-sudo apt install libasound2-dev rubberband-cli xclip python3-venv
+sudo apt install libasound2-dev rubberband-cli xclip python3-venv python3-pyqt6
 ```
 
 For Wayland clipboard support, install `wl-clipboard` instead of or in addition to `xclip`:
