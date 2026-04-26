@@ -6,6 +6,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [1.4.0] — 2026-04-25
+
+### Implement frontpocket_installer.sh to make installation easier.
+- Leave the manual installation steps in the document.
+- Tested on Debian. Other distros please report back and open a PR with any fixes.
+
+### Change Server audio playback behavior to re-use same stream.  
+- Resolve issue where time between speaking blocks (sentences) was slightly too long. Now we keep one stream open and play through that.
+- Time between sentences can be adjusted by INI setting, example:
+sentence_gap_ms = 75
+
+---
+
 ## [1.3.0] — 2026-04-21
 
 ### Change toolbar button behavior. Make Pause, Play, Stop work as intuitively expected.
