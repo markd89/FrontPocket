@@ -57,7 +57,13 @@ The server and client communicate over a local TCP socket (default port `5562`).
 
 ## Installation
 
-See [INSTALL.md](INSTALL.md) for full setup instructions including systemd service configuration.
+See [INSTALL.md](INSTALL.md) for full manual setup instructions including systemd service configuration.
+
+Starting in FrontPocket v1.4 [frontpocket_installer.sh](frontpocket_installer.sh) is provided. This script simplifies installation on Linux environments. Tested on Debian.
+
+Download the script, chmod +x frontpocket_installer.sh, ./frontpocket_installer.sh
+
+The script will download the project and perform the same install steps as the manual install. This needs more testing, especially on non-Debian systems. A log file is created in ~/FrontPocket which may help with troubleshooting and issue reporting.
 
 ---
 
