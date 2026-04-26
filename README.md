@@ -211,7 +211,7 @@ journalctl --user -u frontpocket -f
 | `rubberband-cli` | System package required by pyrubberband |
 | `pyqt6` | UI for the toolbar |
 | `pyperclip` | Windows clipboard support (optional) |
-
+| `python3-venv` | venv module for python3 |
 ---
 
 ## License
