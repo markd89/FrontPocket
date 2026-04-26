@@ -54,6 +54,7 @@ class ServerState:
         self.interrupt_pause  = settings["interrupt_pause"]
         self.interrupt_sound  = os.path.expanduser(settings["interrupt_sound"]) if settings["interrupt_sound"] else ""
         self.debug_dir        = os.path.expanduser(settings["debug_dir"]) if settings["debug_dir"] else ""
+        self.sentence_gap_ms  = settings["sentence_gap_ms"]
         self.voices           = voices                          # {name: path_or_builtin}
 
         # Playback settings
@@ -407,9 +408,12 @@ def pregen_worker(state: ServerState, log):
 
 def playback_worker(state: ServerState, log):
     """
-    Background thread: plays chunks sequentially, respecting pause,
-    next, back, and new-text signals.
+    Background thread: plays chunks sequentially using a persistent OutputStream
+    that stays open across chunks to eliminate inter-chunk latency. The stream
+    is only closed when playback pauses, stops, finishes, or hits an error.
     """
+    BLOCK_SIZE = 1024  # frames per write — controls pause/skip responsiveness
+
     while True:
         # Wait until there is something to play
         while True:
@@ -420,129 +424,141 @@ def playback_worker(state: ServerState, log):
                 break
             time.sleep(0.05)
 
+        # Open one stream for this entire playback session
         try:
-            with state.lock:
-                idx    = state.chunk_index
-                total  = len(state.chunks)
-                offset = state.sample_offset
+            sr = state.sample_rate
+            with sd.OutputStream(samplerate=sr, channels=1,
+                                 dtype='float32', blocksize=BLOCK_SIZE) as stream:
 
-            if idx >= total:
-                with state.lock:
-                    state.status = "idle"
-                continue
-
-            # Ensure audio is ready and matches current voice+speed settings
-            with state.lock:
-                audio      = state.chunks[idx]["audio"]
-                cur_voice  = state.voice_name
-                cur_speed  = state.speed
-                if (audio is not None and
-                        audio is not AUDIO_SKIP and
-                        (state.chunks[idx]["voice"] != cur_voice or
-                         state.chunks[idx]["speed"] != cur_speed)):
-                    # Stale audio from old voice/speed — treat as not yet generated
-                    state.chunks[idx]["audio"] = None
-                    state.chunks[idx]["voice"] = None
-                    state.chunks[idx]["speed"] = None
-                    audio = None
-
-            # Wait for audio — generation is exclusively the pregen thread's job
-            if audio is None:
-                log.debug("Waiting for chunk %d to be generated", idx)
-                state.pregen_event.set()
-                wait_start = time.time()
-                while audio is None:
-                    time.sleep(0.05)
+                while True:
+                    # Check we're still playing
                     with state.lock:
-                        if idx >= len(state.chunks):
-                            break
-                        audio = state.chunks[idx]["audio"]
                         if state.status != "playing":
                             break
-                        # Also break out if audio arrived but is stale (settings changed again)
+                        idx   = state.chunk_index
+                        total = len(state.chunks)
+                        offset = state.sample_offset
+
+                    if idx >= total:
+                        with state.lock:
+                            state.status = "idle"
+                            log.info("Playback complete")
+                        break
+
+                    # Stale audio check
+                    with state.lock:
+                        audio     = state.chunks[idx]["audio"]
+                        cur_voice = state.voice_name
+                        cur_speed = state.speed
                         if (audio is not None and
                                 audio is not AUDIO_SKIP and
-                                (state.chunks[idx]["voice"] != state.voice_name or
-                                 state.chunks[idx]["speed"] != state.speed)):
-                            audio = None
+                                (state.chunks[idx]["voice"] != cur_voice or
+                                 state.chunks[idx]["speed"] != cur_speed)):
                             state.chunks[idx]["audio"] = None
                             state.chunks[idx]["voice"] = None
                             state.chunks[idx]["speed"] = None
-                    if time.time() - wait_start > 30:
-                        log.info("Timed out waiting for chunk %d", idx)
-                        break
+                            audio = None
 
-            if audio is None or audio is AUDIO_SKIP:
-                log.info("Skipping chunk %d", idx)
-                with state.lock:
-                    state.chunk_index += 1
-                    if state.chunk_index >= len(state.chunks):
-                        state.status = "idle"
-                        log.info("Playback complete")
-                continue
+                    # Wait for audio if not yet generated
+                    if audio is None:
+                        log.debug("Waiting for chunk %d to be generated", idx)
+                        state.pregen_event.set()
+                        wait_start = time.time()
+                        while audio is None:
+                            time.sleep(0.05)
+                            with state.lock:
+                                if idx >= len(state.chunks):
+                                    break
+                                audio = state.chunks[idx]["audio"]
+                                if state.status != "playing":
+                                    break
+                                if (audio is not None and
+                                        audio is not AUDIO_SKIP and
+                                        (state.chunks[idx]["voice"] != state.voice_name or
+                                         state.chunks[idx]["speed"] != state.speed)):
+                                    audio = None
+                                    state.chunks[idx]["audio"] = None
+                                    state.chunks[idx]["voice"] = None
+                                    state.chunks[idx]["speed"] = None
+                            if time.time() - wait_start > 30:
+                                log.info("Timed out waiting for chunk %d", idx)
+                                break
 
-            # Trim to resume offset
-            play_audio = audio[offset:]
-            if len(play_audio) == 0:
-                with state.lock:
-                    state.chunk_index += 1
-                    state.sample_offset = 0
-                continue
-
-            log.info("Playing chunk %d of %d (voice=%s speed=%.2f)",
-                     idx + 1, total, state.voice_name, state.speed)
-
-            state.skip_event.clear()
-
-            finished_naturally = False
-            start_time         = time.time()
-            sr                 = state.sample_rate
-
-            # Use explicit OutputStream so the stream is always fully closed
-            # after each chunk — prevents ALSA stream accumulation over time.
-            BLOCK_SIZE = 1024  # frames per write, small enough for responsive pause/skip
-            pos = 0
-            try:
-                with sd.OutputStream(samplerate=sr, channels=1,
-                                     dtype='float32', blocksize=BLOCK_SIZE) as stream:
-                    while pos < len(play_audio):
-                        # Check for pause or skip before each block
-                        with state.lock:
-                            current_status = state.status
-                        if current_status == "paused" or state.skip_event.is_set():
+                    # Check status again after wait
+                    with state.lock:
+                        if state.status != "playing":
                             break
 
+                    if audio is None or audio is AUDIO_SKIP:
+                        log.info("Skipping chunk %d", idx)
+                        with state.lock:
+                            state.chunk_index += 1
+                        state.pregen_event.set()
+                        continue
+
+                    # Trim to resume offset
+                    play_audio = audio[offset:]
+                    if len(play_audio) == 0:
+                        with state.lock:
+                            state.chunk_index += 1
+                            state.sample_offset = 0
+                        continue
+
+                    log.info("Playing chunk %d of %d (voice=%s speed=%.2f)",
+                             idx + 1, total, state.voice_name, state.speed)
+
+                    state.skip_event.clear()
+                    start_time        = time.time()
+                    finished_naturally = False
+                    pos               = 0
+
+                    # Write chunk audio block by block
+                    while pos < len(play_audio):
+                        with state.lock:
+                            current_status = state.status
+                        if current_status != "playing" or state.skip_event.is_set():
+                            break
                         block = play_audio[pos:pos + BLOCK_SIZE]
-                        # Pad last block if needed
                         if len(block) < BLOCK_SIZE:
                             block = np.pad(block, (0, BLOCK_SIZE - len(block)))
                         stream.write(block)
                         pos += BLOCK_SIZE
                     else:
                         finished_naturally = True
-            except Exception as stream_err:
-                log.info("Stream error on chunk %d: %s", idx, stream_err)
-                time.sleep(0.1)
-                continue
 
-            # Update sample offset
-            elapsed_samples = int((time.time() - start_time) * sr) + offset
+                    # Update state after chunk
+                    elapsed_samples = int((time.time() - start_time) * sr) + offset
+                    with state.lock:
+                        if finished_naturally:
+                            state.chunk_index  += 1
+                            state.sample_offset = 0
+                        elif state.skip_event.is_set():
+                            state.sample_offset = 0
+                        elif state.status == "paused":
+                            state.sample_offset = min(elapsed_samples, len(audio) - 1)
 
-            with state.lock:
-                if finished_naturally:
-                    state.chunk_index  += 1
-                    state.sample_offset = 0
-                    if state.chunk_index >= len(state.chunks):
-                        state.status = "idle"
-                        log.info("Playback complete")
-                elif state.skip_event.is_set():
-                    # next/back already updated chunk_index
-                    state.sample_offset = 0
-                elif state.status == "paused":
-                    state.sample_offset = min(elapsed_samples, len(audio) - 1)
+                    # Wake pre-gen thread
+                    state.pregen_event.set()
 
-            # Wake pre-gen thread
-            state.pregen_event.set()
+                    if not finished_naturally:
+                        break  # paused, skipped or stopped — exit inner loop, close stream
+
+                    # Inter-sentence gap — write silence while stream stays open
+                    gap_ms = state.sentence_gap_ms
+                    if gap_ms > 0:
+                        gap_samples = int(sr * gap_ms / 1000)
+                        silence     = np.zeros(gap_samples, dtype=np.float32)
+                        # Write silence in blocks, still checking for pause/skip
+                        spos = 0
+                        while spos < len(silence):
+                            with state.lock:
+                                if state.status != "playing" or state.skip_event.is_set():
+                                    break
+                            block = silence[spos:spos + BLOCK_SIZE]
+                            if len(block) < BLOCK_SIZE:
+                                block = np.pad(block, (0, BLOCK_SIZE - len(block)))
+                            stream.write(block)
+                            spos += BLOCK_SIZE
 
         except Exception as e:
             log.info("Playback worker error: %s", e)
@@ -678,14 +694,12 @@ def _play_wav_file(path: str, log):
     """Play a WAV file synchronously. Silently skips if file missing or unreadable."""
     try:
         sr, data = scipy.io.wavfile.read(path)
-        # Normalise to float32 [-1, 1]
         if data.dtype == np.int16:
             data = data.astype(np.float32) / 32768.0
         elif data.dtype == np.int32:
             data = data.astype(np.float32) / 2147483648.0
         elif data.dtype != np.float32:
             data = data.astype(np.float32)
-        # Mix to mono if stereo
         if data.ndim == 2:
             data = data.mean(axis=1)
         channels = 1

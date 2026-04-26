@@ -22,13 +22,23 @@ instructions — they contain useful context.
 - `rubberband-cli` (for speed adjustment)
 - `xclip` (X11) or `wl-clipboard` (Wayland) for clipboard support
 - A desktop session (the service uses your audio session directly)
+- python3-venv (Debian and Ubuntu need to install this. Arch & Fedora package it with python3)
+- PyQt6 for Toolbar GUI
 
 
+## 0. "Easy" Installation with frontpocket_installer.sh
+
+- New simplified installation for FrontPocket v1.4+
+- Starting in FrontPocket v1.4 [frontpocket_installer.sh](frontpocket_installer.sh) is provided. This script simplifies installation on Linux environments. Tested on Debian.
+- Download the script, chmod +x frontpocket_installer.sh, ./frontpocket_installer.sh
+- The script will download the project and perform the same install steps as the manual install. This needs more testing, especially on non-Debian systems. A log file is created in ~/FrontPocket which may help with troubleshooting and issue reporting.
+
+We still recommend reviewing the steps below so that you know what the install script is doing. Also starting at Step 7, there are some usage information.
 
 ## 1. Install system dependencies
 
 ```bash
-sudo apt install libasound2-dev rubberband-cli xclip
+sudo apt install libasound2-dev rubberband-cli xclip python3-venv python3-pyqt6
 ```
 
 For Wayland clipboard support, install `wl-clipboard` instead of or in addition to `xclip`:
