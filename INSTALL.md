@@ -26,6 +26,15 @@ instructions — they contain useful context.
 - PyQt6 for Toolbar GUI
 
 
+## 0. "Easy" Installation with frontpocket_installer.sh
+
+- New simplified installation for FrontPocket v1.4+
+- Starting in FrontPocket v1.4 [frontpocket_installer.sh](frontpocket_installer.sh) is provided. This script simplifies installation on Linux environments. Tested on Debian.
+- Download the script, chmod +x frontpocket_installer.sh, ./frontpocket_installer.sh
+- The script will download the project and perform the same install steps as the manual install. This needs more testing, especially on non-Debian systems. A log file is created in ~/FrontPocket which may help with troubleshooting and issue reporting.
+
+We still recommend reviewing the steps below so that you know what the install script is doing. Also starting at Step 7, there are some usage information.
+
 ## 1. Install system dependencies
 
 ```bash
