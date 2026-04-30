@@ -8,7 +8,7 @@ import logging
 import os
 import sys
 
-VERSION = "1.4.0"
+VERSION = "1.4.1"
 
 # ---------------------------------------------------------------------------
 # Config loading
