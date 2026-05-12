@@ -55,7 +55,8 @@ class ServerState:
         self.interrupt_sound  = os.path.expanduser(settings["interrupt_sound"]) if settings["interrupt_sound"] else ""
         self.debug_dir        = os.path.expanduser(settings["debug_dir"]) if settings["debug_dir"] else ""
         self.sentence_gap_ms  = settings["sentence_gap_ms"]
-        self.voices           = voices                          # {name: path_or_builtin}
+        self.voices           = voices
+        self.user_replacements = []   # loaded separately after config parse                          # {name: path_or_builtin}
 
         # Playback settings
         self.voice_name       = settings["default_voice"]
@@ -187,8 +188,7 @@ def reload_model(state: ServerState, log) -> bool:
 # Chunk text cleaning
 # ---------------------------------------------------------------------------
 
-_TRAIL_STRIP = re.compile(r'[\s.,\-\u2013\u2014\u201c\u201d"\']+$')
-# Also strip leading quotes
+_TRAIL_STRIP = re.compile(r'[\s\-\u2013\u2014\u201c\u201d"\']+$')
 _LEAD_STRIP  = re.compile(r'^[\s\u201c\u201d"\']+')
 
 def clean_chunk_text(text: str) -> str:
@@ -196,6 +196,149 @@ def clean_chunk_text(text: str) -> str:
     text = _LEAD_STRIP.sub("", text)
     text = _TRAIL_STRIP.sub("", text)
     return text.strip()
+
+
+# ---------------------------------------------------------------------------
+# Text preprocessing — built-in transformations
+# ---------------------------------------------------------------------------
+
+# Currency: matches optional thousands separators, optional decimal part,
+# optional scale word (million/billion etc.)
+_SCALE_WORDS = r'(?:\s+(?:hundred|thousand|million|billion|trillion)s?)?'
+_AMOUNT      = r'(\d[\d,]*)(?:\.(\d+))?' + _SCALE_WORDS
+
+_CURRENCY_PATTERNS = [
+    # USD
+    (re.compile(r'\$' + _AMOUNT, re.IGNORECASE), 'usd'),
+    # GBP
+    (re.compile(r'£' + _AMOUNT, re.IGNORECASE), 'gbp'),
+    # EUR
+    (re.compile(r'€' + _AMOUNT, re.IGNORECASE), 'eur'),
+    # JPY / CNY
+    (re.compile(r'¥' + _AMOUNT, re.IGNORECASE), 'jpy'),
+]
+
+_CURRENCY_NAMES = {
+    'usd': ('dollar',  'cent'),
+    'gbp': ('pound',   'pence'),
+    'eur': ('euro',    'cent'),
+    'jpy': ('yen',     None),      # yen has no subdivision
+}
+
+def _replace_currency(text: str) -> str:
+    for pattern, code in _CURRENCY_PATTERNS:
+        whole_name, cent_name = _CURRENCY_NAMES[code]
+
+        def _sub(m, code=code, whole_name=whole_name, cent_name=cent_name):
+            # Reconstruct the full match to check for scale words
+            full    = m.group(0)
+            whole   = m.group(1).replace(",", "")
+            decimal = m.group(2)
+
+            # Check for scale word after the amount
+            scale_match = re.search(
+                r'\b(hundred|thousand|million|billion|trillion)s?\b',
+                full, re.IGNORECASE)
+            scale = (" " + scale_match.group(0)) if scale_match else ""
+
+            whole_int = int(whole)
+            plural    = "s" if whole_int != 1 else ""
+            result    = f"{whole}{scale} {whole_name}{plural}"
+
+            if decimal and cent_name:
+                cent_int   = int(decimal.ljust(2, '0')[:2])
+                cent_plural = "s" if cent_int != 1 else ""
+                result     += f" {cent_int} {cent_name}{cent_plural}"
+
+            return result
+
+        text = pattern.sub(_sub, text)
+    return text
+
+
+# Email: user@example.com -> user at example dot com
+_EMAIL_RE = re.compile(
+    r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}')
+
+def _replace_emails(text: str) -> str:
+    def _sub(m):
+        return m.group(0).replace('@', ' at ').replace('.', ' dot ')
+    return _EMAIL_RE.sub(_sub, text)
+
+
+# File extensions — order matters: .jpeg before .jpg
+_FILE_EXTENSIONS = [
+    (re.compile(r'\.jpeg\b', re.IGNORECASE), ' dot j peg'),
+    (re.compile(r'\.jpg\b',  re.IGNORECASE), ' dot j peg'),
+    (re.compile(r'\.png\b',  re.IGNORECASE), ' dot p n g'),
+    (re.compile(r'\.gif\b',  re.IGNORECASE), ' dot jif'),
+    (re.compile(r'\.webp\b', re.IGNORECASE), ' dot web p'),
+    (re.compile(r'\.pdf\b',  re.IGNORECASE), ' dot p d f'),
+    (re.compile(r'\.svg\b',  re.IGNORECASE), ' dot s v g'),
+    (re.compile(r'\.mp4\b',  re.IGNORECASE), ' dot m p 4'),
+    (re.compile(r'\.mp3\b',  re.IGNORECASE), ' dot m p 3'),
+    (re.compile(r'\.csv\b',  re.IGNORECASE), ' dot c s v'),
+    (re.compile(r'\.json\b', re.IGNORECASE), ' dot j son'),
+    (re.compile(r'\.xml\b',  re.IGNORECASE), ' dot x m l'),
+    (re.compile(r'\.html\b', re.IGNORECASE), ' dot h t m l'),
+    (re.compile(r'\.zip\b',  re.IGNORECASE), ' dot zip'),
+    (re.compile(r'\.txt\b',  re.IGNORECASE), ' dot t x t'),
+]
+
+def _replace_file_extensions(text: str) -> str:
+    for pattern, replacement in _FILE_EXTENSIONS:
+        text = pattern.sub(replacement, text)
+    return text
+
+
+# URLs/domains: example.com -> example dot com
+# Only replaces dot when followed by a known TLD
+_TLDS = (
+    'com|org|net|edu|gov|io|co|ai|app|uk|us|ca|au|de|fr|'
+    'jp|cn|ru|br|in|it|es|nl|se|no|dk|fi|nz|sg|hk'
+)
+_URL_RE = re.compile(
+    r'(?:https?://|www\.)?'           # optional protocol or www
+    r'([a-zA-Z0-9][a-zA-Z0-9\-]*)'   # domain name
+    r'(\.[a-zA-Z0-9\-]+)*'           # optional subdomains
+    r'\.(' + _TLDS + r')'            # known TLD
+    r'(?:/[^\s]*)?',                  # optional path
+    re.IGNORECASE
+)
+
+def _replace_urls(text: str) -> str:
+    def _sub(m):
+        return m.group(0).replace('.', ' dot ').replace('/', ' slash ') \
+                         .replace('http: slash  slash ', '') \
+                         .replace('https: slash  slash ', '')
+    return _URL_RE.sub(_sub, text)
+
+
+def apply_builtin_transformations(text: str) -> str:
+    """Apply all built-in text transformations in correct order."""
+    text = _replace_currency(text)
+    text = _replace_emails(text)
+    text = _replace_file_extensions(text)
+    text = _replace_urls(text)
+    return text
+
+
+def apply_user_replacements(text: str, replacements: list[tuple[str, str]]) -> str:
+    """Apply user-defined literal find/replace pairs from [TextReplacements]."""
+    for find, replace in replacements:
+        text = text.replace(find, replace)
+    return text
+
+
+def load_user_replacements(config) -> list[tuple[str, str]]:
+    """Load [TextReplacements] from config into a list of (find, replace) tuples."""
+    if not config.has_section("TextReplacements"):
+        return []
+    replacements = []
+    for find, replace in config["TextReplacements"].items():
+        # configparser lowercases keys — restore by re-reading raw
+        replacements.append((find, replace))
+    return replacements
 
 
 # ---------------------------------------------------------------------------
@@ -289,6 +432,12 @@ def generate_chunk_audio(state: ServerState, chunk_index: int, log) -> bool:
              chunk_index, voice_name, speed,
              f": {repr(text)}" if log.isEnabledFor(10) else "")
 
+    # Apply text transformations before sending to TTS engine
+    tts_text = apply_builtin_transformations(text)
+    tts_text = apply_user_replacements(tts_text, state.user_replacements)
+    if log.isEnabledFor(10) and tts_text != text:
+        log.debug("Chunk %d after transforms: %r", chunk_index, tts_text)
+
     # Write debug chunk file if debug_dir is configured
     if debug_dir and log.isEnabledFor(10):
         try:
@@ -304,7 +453,7 @@ def generate_chunk_audio(state: ServerState, chunk_index: int, log) -> bool:
         pocket_tts_logger = logging.getLogger("pocket_tts.models.tts_model")
         pocket_tts_logger.addHandler(eos_handler)
         try:
-            audio = model.generate_audio(vs, text).numpy()
+            audio = model.generate_audio(vs, tts_text).numpy()
         finally:
             pocket_tts_logger.removeHandler(eos_handler)
 
@@ -894,9 +1043,12 @@ def main():
     tts_model = TTSModel.load_model()
     log.info("Model loaded")
 
-    state             = ServerState(settings, voices)
-    state.tts_model   = tts_model
-    state.sample_rate = tts_model.sample_rate
+    state                   = ServerState(settings, voices)
+    state.tts_model         = tts_model
+    state.sample_rate       = tts_model.sample_rate
+    state.user_replacements = load_user_replacements(config)
+    if state.user_replacements:
+        log.info("Loaded %d user text replacement(s)", len(state.user_replacements))
 
     # Load default voice
     if not load_voice(state, state.voice_name, log):
