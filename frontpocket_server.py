@@ -204,25 +204,22 @@ def clean_chunk_text(text: str) -> str:
 
 # Currency: matches optional thousands separators, optional decimal part,
 # optional scale word (million/billion etc.)
-_SCALE_WORDS = r'(?:\s+(?:hundred|thousand|million|billion|trillion)s?)?'
-_AMOUNT      = r'(\d[\d,]*)(?:\.(\d+))?' + _SCALE_WORDS
+_SCALE_RE    = re.compile(
+    r'\b(hundred|thousand|million|billion|trillion)s?\b', re.IGNORECASE)
+_AMOUNT      = r'(\d[\d,]*)(?:\.(\d+))?'
 
 _CURRENCY_PATTERNS = [
-    # USD
-    (re.compile(r'\$' + _AMOUNT, re.IGNORECASE), 'usd'),
-    # GBP
-    (re.compile(r'£' + _AMOUNT, re.IGNORECASE), 'gbp'),
-    # EUR
-    (re.compile(r'€' + _AMOUNT, re.IGNORECASE), 'eur'),
-    # JPY / CNY
-    (re.compile(r'¥' + _AMOUNT, re.IGNORECASE), 'jpy'),
+    (re.compile(r'\$' + _AMOUNT + r'(\s+(?:hundred|thousand|million|billion|trillion)s?)?', re.IGNORECASE), 'usd'),
+    (re.compile(r'£' + _AMOUNT + r'(\s+(?:hundred|thousand|million|billion|trillion)s?)?', re.IGNORECASE), 'gbp'),
+    (re.compile(r'€' + _AMOUNT + r'(\s+(?:hundred|thousand|million|billion|trillion)s?)?', re.IGNORECASE), 'eur'),
+    (re.compile(r'¥' + _AMOUNT + r'(\s+(?:hundred|thousand|million|billion|trillion)s?)?', re.IGNORECASE), 'jpy'),
 ]
 
 _CURRENCY_NAMES = {
     'usd': ('dollar',  'cent'),
     'gbp': ('pound',   'pence'),
     'eur': ('euro',    'cent'),
-    'jpy': ('yen',     None),      # yen has no subdivision
+    'jpy': ('yen',     None),
 }
 
 def _replace_currency(text: str) -> str:
@@ -230,30 +227,38 @@ def _replace_currency(text: str) -> str:
         whole_name, cent_name = _CURRENCY_NAMES[code]
 
         def _sub(m, code=code, whole_name=whole_name, cent_name=cent_name):
-            # Reconstruct the full match to check for scale words
-            full    = m.group(0)
             whole   = m.group(1).replace(",", "")
             decimal = m.group(2)
+            scale   = (m.group(3) or "").strip()
 
-            # Check for scale word after the amount
-            scale_match = re.search(
-                r'\b(hundred|thousand|million|billion|trillion)s?\b',
-                full, re.IGNORECASE)
-            scale = (" " + scale_match.group(0)) if scale_match else ""
-
-            whole_int = int(whole)
-            plural    = "s" if whole_int != 1 else ""
-            result    = f"{whole}{scale} {whole_name}{plural}"
-
-            if decimal and cent_name:
-                cent_int   = int(decimal.ljust(2, '0')[:2])
-                cent_plural = "s" if cent_int != 1 else ""
-                result     += f" {cent_int} {cent_name}{cent_plural}"
-
-            return result
+            if scale:
+                # Scale amount: $1.3 billion → "1 point 3 billion dollars"
+                # Decimal is part of the number, not cents
+                amount_str = f"{whole} point {decimal}" if decimal else whole
+                return f"{amount_str} {scale} {whole_name}s"
+            else:
+                # Price: $52.50 → "52 dollars 50 cents"
+                whole_int  = int(whole)
+                plural     = "s" if whole_int != 1 else ""
+                result     = f"{whole} {whole_name}{plural}"
+                if decimal and cent_name:
+                    cent_int    = int(decimal.ljust(2, '0')[:2])
+                    cent_plural = "s" if cent_int != 1 else ""
+                    result     += f" {cent_int} {cent_name}{cent_plural}"
+                return result
 
         text = pattern.sub(_sub, text)
     return text
+
+
+# Quote stripping — remove all quote variants mid-text
+# (leading/trailing quotes are handled separately by _LEAD_STRIP/_TRAIL_STRIP)
+_QUOTE_RE = re.compile(
+    r'["\u201c\u201d\u201e\u201f\u00ab\u00bb]'
+)
+
+def _strip_quotes(text: str) -> str:
+    return _QUOTE_RE.sub('', text)
 
 
 # Email: user@example.com -> user at example dot com
@@ -316,6 +321,7 @@ def _replace_urls(text: str) -> str:
 
 def apply_builtin_transformations(text: str) -> str:
     """Apply all built-in text transformations in correct order."""
+    text = _strip_quotes(text)
     text = _replace_currency(text)
     text = _replace_emails(text)
     text = _replace_file_extensions(text)
