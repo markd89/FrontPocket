@@ -330,10 +330,15 @@ def apply_builtin_transformations(text: str) -> str:
 
 
 def apply_user_replacements(text: str, replacements: list[tuple[str, str]]) -> str:
-    """Apply user-defined literal find/replace pairs from [TextReplacements]."""
+    """Apply user-defined literal find/replace pairs from [TextReplacements].
+    Replacement values are padded with spaces on each side to ensure correct
+    word separation (e.g. C&C -> C and C). Double spaces are collapsed after.
+    """
     for find, replace in replacements:
-        text = text.replace(find, replace)
-    return text
+        text = text.replace(find, f" {replace} ")
+    # Collapse any double spaces introduced by padding
+    text = re.sub(r' {2,}', ' ', text)
+    return text.strip()
 
 
 def load_user_replacements(config) -> list[tuple[str, str]]:
