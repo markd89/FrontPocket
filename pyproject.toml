@@ -17,6 +17,9 @@ dependencies = [
     "numpy",
     "scipy",
     "pyqt6",
+    "num2words",
+    "emoji",
+    "pronouncing"
 ]
 
 [project.optional-dependencies]
