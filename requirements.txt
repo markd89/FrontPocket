@@ -5,4 +5,7 @@ sounddevice
 numpy
 scipy
 PyQt6>=6.0.0 # Used by frontpocket_toolbar.py
+num2words
+emoji
+pronouncing
 # pyperclip  # Uncomment for Windows clipboard support
