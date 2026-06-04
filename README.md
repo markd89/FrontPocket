@@ -218,6 +218,13 @@ journalctl --user -u frontpocket -f
 | `pyqt6` | UI for the toolbar |
 | `pyperclip` | Windows clipboard support (optional) |
 | `python3-venv` | venv module for python3 |
+| `emoji` | Identify and map emojis in text |
+| `num2words` | 21 -> twenty one |
+| `pronouncing` | Word list |
+
+
+
+
 ---
 
 ## License
