@@ -36,7 +36,8 @@ Much thanks to the very smart people at Kyutai Labs for their beautiful model an
 - **Clipboard-first** — default input is the system clipboard; also accepts inline text and text files
 - **Auto model reload** — detects bad TTS generation and reloads the model automatically
 - **systemd ready** — runs as a proper systemd user service with automatic restart on failure
-- **Multilingual** — sentence segmentation supports English, German, French, Spanish, Italian, Russian, Polish, and more. Tested with English.
+- **User-friendly Polish** — proper handling of numbers, currencies, hyphens, acronyms. Workarounds for words that the Pocket-TTS model has difficulty with.
+- **Multilingual** — sentence segmentation supports English, German, French, Spanish, Italian, Russian, Polish, and more. Tested with English. Full multilingual support coming in a future version.
 - **UI Toolbar** - Because we don't always want to be in the CLI.
 
 ---
