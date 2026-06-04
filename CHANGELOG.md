@@ -8,9 +8,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [1.5.0] — 2026-06-01
 
 ### Better handling of numbers and currency.
-- $1.6B is now spoken as "one point six billion dollars"
+- Example: $1.6B is now spoken as "one point six billion dollars" 
 - All numbers are now converted to words before being spoken which works around occasional issue with Pocket-TTS not properly speaking them. i.e. "12 billion" being spoken as "2 billion"
-- Various edge cases.
+- "3-2" spoken as "three to two", "-5" spoken as minus 5. Various other edge cases.
 
 ### Emoji handling.
 - By default we now strip emojis from the text to be spoken.
