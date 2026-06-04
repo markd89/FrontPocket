@@ -10,11 +10,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Better handling of numbers and currency.
 - Example: $1.6B is now spoken as "one point six billion dollars" 
 - All numbers are now converted to words before being spoken which works around occasional issue with Pocket-TTS not properly speaking them. i.e. "12 billion" being spoken as "2 billion"
-- "3-2" spoken as "three to two", "-5" spoken as minus 5. Various other edge cases.
+- "3-2" spoken as "three to two", "-5" spoken as "minus 5". Various other edge cases.
 
 ### Emoji handling.
 - By default we now strip emojis from the text to be spoken.
-- Alternatively, you can configure them to be spoken by having a line in the frontpocket.ini under [AllowedEmojis] such as 🇺🇸 = United States Flag. See the model frontpocket.ini for examples.
+- Alternatively, you can configure them to be spoken by having a line in the frontpocket.ini under [AllowedEmojis] such as ❤️ = love. See the model frontpocket.ini for examples.
 
 ### Handling of Acronyms. 
 - NASA is spoken as a word, but IPO is spoken as I-P-O.
