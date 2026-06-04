@@ -54,8 +54,12 @@ class ServerState:
         self.interrupt_pause  = settings["interrupt_pause"]
         self.interrupt_sound  = os.path.expanduser(settings["interrupt_sound"]) if settings["interrupt_sound"] else ""
         self.debug_dir        = os.path.expanduser(settings["debug_dir"]) if settings["debug_dir"] else ""
-        self.sentence_gap_ms  = settings["sentence_gap_ms"]
-        self.voices           = voices                          # {name: path_or_builtin}
+        self.sentence_gap_ms   = settings["sentence_gap_ms"]
+        self.voices            = voices
+        self.user_replacements = []
+        self.emoji_stripper    = None   # set after config parse
+        self.word_acronyms     = set(_WORD_ACRONYMS)
+        self.letter_acronyms   = set(_LETTER_ACRONYMS)                          # {name: path_or_builtin}
 
         # Playback settings
         self.voice_name       = settings["default_voice"]
@@ -187,8 +191,7 @@ def reload_model(state: ServerState, log) -> bool:
 # Chunk text cleaning
 # ---------------------------------------------------------------------------
 
-_TRAIL_STRIP = re.compile(r'[\s.,\-\u2013\u2014\u201c\u201d"\']+$')
-# Also strip leading quotes
+_TRAIL_STRIP = re.compile(r'[\s\-\u2013\u2014\u201c\u201d"\']+$')
 _LEAD_STRIP  = re.compile(r'^[\s\u201c\u201d"\']+')
 
 def clean_chunk_text(text: str) -> str:
@@ -196,6 +199,456 @@ def clean_chunk_text(text: str) -> str:
     text = _LEAD_STRIP.sub("", text)
     text = _TRAIL_STRIP.sub("", text)
     return text.strip()
+
+
+# ---------------------------------------------------------------------------
+# Text preprocessing — built-in transformations
+# ---------------------------------------------------------------------------
+# Dependencies: num2words, emoji, pronouncing
+
+try:
+    from num2words import num2words as _num2words
+    _HAS_NUM2WORDS = True
+except ImportError:
+    _HAS_NUM2WORDS = False
+
+try:
+    import emoji as _emoji_lib
+    _HAS_EMOJI = True
+except ImportError:
+    _HAS_EMOJI = False
+
+try:
+    import pronouncing as _pronouncing
+    _HAS_PRONOUNCING = True
+except ImportError:
+    _HAS_PRONOUNCING = False
+
+
+# --- Emoji ---
+
+def _build_emoji_stripper(allowed: dict) -> callable:
+    """Return a function that strips unallowed emojis, replacing allowed ones
+    with their configured text. Handles multi-codepoint sequences like flags."""
+    def _strip(text: str) -> str:
+        if not _HAS_EMOJI:
+            return text
+        # emoji_list returns list of {match_start, match_end, emoji} dicts
+        # sorted by position — process in reverse to preserve indices
+        found = _emoji_lib.emoji_list(text)
+        if not found:
+            return text
+        result = list(text)
+        for item in reversed(found):
+            start = item['match_start']
+            end   = item['match_end']
+            char  = item['emoji']
+            replacement = allowed.get(char)
+            if replacement:
+                result[start:end] = list(f" {replacement} ")
+            else:
+                result[start:end] = []
+        return re.sub(r' {2,}', ' ', ''.join(result)).strip()
+    return _strip
+
+
+def load_allowed_emojis(config) -> dict:
+    """Load [AllowedEmojis] from config: {emoji_char: spoken_text or ''}."""
+    if not config.has_section("AllowedEmojis"):
+        return {}
+    result = {}
+    for emoji_char, spoken in config["AllowedEmojis"].items():
+        result[emoji_char] = spoken.strip()
+    return result
+
+
+# --- Quote stripping ---
+
+_QUOTE_RE = re.compile(r'["\u201c\u201d\u201e\u201f\u00ab\u00bb]')
+
+def _strip_quotes(text: str) -> str:
+    return _QUOTE_RE.sub('', text)
+
+
+# --- Currency ---
+
+_CURRENCY_SCALE_RE = re.compile(
+    r'(\s+(?:hundred|thousand|million|billion|trillion)s?'
+    r'|[KkMmBbTt](?=\b))?',
+    re.IGNORECASE
+)
+
+_CURRENCY_SUFFIX_MAP = {
+    'k': ('thousand', 1_000),
+    'm': ('million',  1_000_000),
+    'b': ('billion',  1_000_000_000),
+    't': ('trillion', 1_000_000_000_000),
+}
+
+_AMOUNT_RE = r'(\d[\d,]*)(?:\.(\d+))?'
+_SCALE_WORD = r'(?:\s+(?:hundred|thousand|million|billion|trillion)s?)?'
+_SCALE_SUFFIX = r'([KkMmBbTt](?=\b|\s|$))?'
+
+_CURRENCY_PATTERNS = [
+    (re.compile(r'\$' + _AMOUNT_RE + _SCALE_WORD + _SCALE_SUFFIX, re.IGNORECASE), 'usd'),
+    (re.compile(r'£' + _AMOUNT_RE + _SCALE_WORD + _SCALE_SUFFIX, re.IGNORECASE), 'gbp'),
+    (re.compile(r'€' + _AMOUNT_RE + _SCALE_WORD + _SCALE_SUFFIX, re.IGNORECASE), 'eur'),
+    (re.compile(r'¥' + _AMOUNT_RE + _SCALE_WORD + _SCALE_SUFFIX, re.IGNORECASE), 'jpy'),
+]
+
+_CURRENCY_NAMES = {
+    'usd': ('dollar', 'cent'),
+    'gbp': ('pound',  'pence'),
+    'eur': ('euro',   'cent'),
+    'jpy': ('yen',    None),
+}
+
+def _number_to_words(n: int) -> str:
+    if _HAS_NUM2WORDS:
+        return _num2words(n)
+    return str(n)
+
+def _replace_currency(text: str) -> str:
+    for pattern, code in _CURRENCY_PATTERNS:
+        whole_name, cent_name = _CURRENCY_NAMES[code]
+
+        def _sub(m, code=code, whole_name=whole_name, cent_name=cent_name):
+            whole   = m.group(1).replace(",", "")
+            decimal = m.group(2)
+            full    = m.group(0)
+
+            # Detect scale word (spelled out) or suffix (K/M/B/T)
+            scale_word_match = re.search(
+                r'\b(hundred|thousand|million|billion|trillion)s?\b',
+                full, re.IGNORECASE)
+            suffix_match = re.search(r'[KkMmBbTt](?=\b|\s|$)', full)
+
+            if scale_word_match:
+                scale = scale_word_match.group(0)
+                if decimal:
+                    decimal_words = ' '.join(_number_to_words(int(d)) for d in decimal)
+                    amount_str = f"{_number_to_words(int(whole))} point {decimal_words}"
+                else:
+                    amount_str = _number_to_words(int(whole))
+                return f"{amount_str} {scale} {whole_name}s"
+
+            elif suffix_match:
+                suffix = suffix_match.group(0).lower()
+                scale_name = _CURRENCY_SUFFIX_MAP[suffix][0]
+                if decimal:
+                    decimal_words = ' '.join(_number_to_words(int(d)) for d in decimal)
+                    amount_str = f"{_number_to_words(int(whole))} point {decimal_words}"
+                else:
+                    amount_str = _number_to_words(int(whole))
+                return f"{amount_str} {scale_name} {whole_name}s"
+
+            else:
+                # Plain price: $52.50 → "fifty two dollars fifty cents"
+                whole_int = int(whole)
+                result    = f"{_number_to_words(whole_int)} {whole_name}" \
+                            f"{'s' if whole_int != 1 else ''}"
+                if decimal and cent_name:
+                    cent_int    = int(decimal.ljust(2, '0')[:2])
+                    cent_plural = 's' if cent_int != 1 else ''
+                    result     += f" {_number_to_words(cent_int)} {cent_name}{cent_plural}"
+                return result
+
+        text = pattern.sub(_sub, text)
+    return text
+
+
+# --- Standalone numbers with scale suffixes (e.g. 6.74M, 500K, 1.2B) ---
+
+_NUM_SUFFIX_RE = re.compile(
+    r'\b(\d[\d,]*)(?:\.(\d+))?([KkMmBbTt])\b'
+)
+
+_SUFFIX_NAMES = {
+    'k': 'thousand',
+    'm': 'million',
+    'b': 'billion',
+    't': 'trillion',
+}
+
+def _replace_num_suffixes(text: str) -> str:
+    def _sub(m):
+        whole   = m.group(1).replace(',', '')
+        decimal = m.group(2)
+        suffix  = m.group(3).lower()
+        scale   = _SUFFIX_NAMES.get(suffix, suffix)
+        if decimal:
+            whole_words   = _number_to_words(int(whole))
+            decimal_words = ' '.join(_number_to_words(int(d)) for d in decimal)
+            return f"{whole_words} point {decimal_words} {scale}"
+        else:
+            return f"{_number_to_words(int(whole))} {scale}"
+    return _NUM_SUFFIX_RE.sub(_sub, text)
+
+
+# --- Standalone numbers ---
+
+# Year range: 1000-2099 — spoken as pairs e.g. "nineteen eighty four"
+_YEAR_RE = re.compile(r'\b(1\d{3}|20\d{2})\b')
+# Standalone integers — any number not already handled by currency/suffix
+_INT_RE   = re.compile(r'\b(\d{1,3}(?:,\d{3})+|\d+)\b')
+# Decimals: 3.14, 1.0 etc. — not already handled by currency
+_FLOAT_RE = re.compile(r'\b(\d+)\.(\d+)\b')
+
+def _year_to_words(year: str) -> str:
+    y = int(year)
+    if _HAS_NUM2WORDS:
+        # num2words year mode: 1984 -> "nineteen eighty four"
+        return _num2words(y, to='year') if y < 2000 else _num2words(y)
+    return year
+
+def _int_to_words(n_str: str) -> str:
+    n = int(n_str.replace(',', ''))
+    return _number_to_words(n)
+
+def _float_to_words(whole: str, decimal: str) -> str:
+    # "3.14" -> "three point one four"
+    # digit by digit after the point
+    decimal_spoken = ' '.join(_number_to_words(int(d)) for d in decimal)
+    return f"{_number_to_words(int(whole))} point {decimal_spoken}"
+
+def _replace_numbers(text: str) -> str:
+    if not _HAS_NUM2WORDS:
+        return text
+    # Order matters: floats before ints (so 3.14 isn't split into 3 and 14)
+    text = _FLOAT_RE.sub(lambda m: _float_to_words(m.group(1), m.group(2)), text)
+    text = _YEAR_RE.sub(lambda m: _year_to_words(m.group(1)), text)
+    text = _INT_RE.sub(lambda m: _int_to_words(m.group(1)), text)
+    return text
+
+
+# --- Hyphens ---
+
+# Number-hyphen-number: scores, ranges → "to"
+_SCORE_RE    = re.compile(r'\b(\d+)-(\d+)\b')
+# Word-hyphen-word: compound words → space
+_COMPOUND_RE = re.compile(r'([a-zA-Z])-([a-zA-Z])')
+# Leading hyphen / space-hyphen-number: minus/negative
+_MINUS_RE    = re.compile(r'(?<=\s)-(\d)')
+
+def _replace_hyphens(text: str) -> str:
+    text = text.replace('\u2013', '-').replace('\u2014', '-')  # en-dash and em-dash → hyphen
+    text = _SCORE_RE.sub(r'\1 to \2', text)
+    text = _MINUS_RE.sub(r'minus \1', text)
+    text = _COMPOUND_RE.sub(r'\1 \2', text)
+    return text
+
+
+# --- Email ---
+
+_EMAIL_RE = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}')
+
+def _replace_emails(text: str) -> str:
+    def _sub(m):
+        return m.group(0).replace('@', ' at ').replace('.', ' dot ')
+    return _EMAIL_RE.sub(_sub, text)
+
+
+# --- File extensions ---
+
+_FILE_EXTENSIONS = [
+    (re.compile(r'\.jpeg\b', re.IGNORECASE), ' dot j peg'),
+    (re.compile(r'\.jpg\b',  re.IGNORECASE), ' dot j peg'),
+    (re.compile(r'\.png\b',  re.IGNORECASE), ' dot p n g'),
+    (re.compile(r'\.gif\b',  re.IGNORECASE), ' dot jif'),
+    (re.compile(r'\.webp\b', re.IGNORECASE), ' dot web p'),
+    (re.compile(r'\.pdf\b',  re.IGNORECASE), ' dot p d f'),
+    (re.compile(r'\.svg\b',  re.IGNORECASE), ' dot s v g'),
+    (re.compile(r'\.mp4\b',  re.IGNORECASE), ' dot m p 4'),
+    (re.compile(r'\.mp3\b',  re.IGNORECASE), ' dot m p 3'),
+    (re.compile(r'\.csv\b',  re.IGNORECASE), ' dot c s v'),
+    (re.compile(r'\.json\b', re.IGNORECASE), ' dot j son'),
+    (re.compile(r'\.xml\b',  re.IGNORECASE), ' dot x m l'),
+    (re.compile(r'\.html\b', re.IGNORECASE), ' dot h t m l'),
+    (re.compile(r'\.zip\b',  re.IGNORECASE), ' dot zip'),
+    (re.compile(r'\.txt\b',  re.IGNORECASE), ' dot t x t'),
+]
+
+def _replace_file_extensions(text: str) -> str:
+    for pattern, replacement in _FILE_EXTENSIONS:
+        text = pattern.sub(replacement, text)
+    return text
+
+
+# --- URLs ---
+
+_TLDS = (
+    'com|org|net|edu|gov|io|co|ai|app|uk|us|ca|au|de|fr|'
+    'jp|cn|ru|br|in|it|es|nl|se|no|dk|fi|nz|sg|hk'
+)
+_URL_RE = re.compile(
+    r'(?:https?://|www\.)?'           # optional protocol or www
+    r'([a-zA-Z0-9][a-zA-Z0-9\-]*)'   # domain name
+    r'(\.[a-zA-Z0-9\-]+)*'           # optional subdomains
+    r'\.(' + _TLDS + r')'            # known TLD
+    r'(?:/[^\s]*)?',                  # optional path
+    re.IGNORECASE
+)
+
+def _replace_urls(text: str) -> str:
+    def _sub(m):
+        return m.group(0).replace('.', ' dot ').replace('/', ' slash ') \
+                         .replace('http: slash  slash ', '') \
+                         .replace('https: slash  slash ', '')
+    return _URL_RE.sub(_sub, text)
+
+
+# --- Acronyms ---
+
+# Pronounceable acronyms that should NOT be letter-spaced
+_WORD_ACRONYMS = {
+    'NATO', 'NASA', 'RADAR', 'LASER', 'SCUBA', 'NASDAQ', 'FIFA',
+    'UEFA', 'OPEC', 'FEMA', 'IAEA', 'UNICEF', 'IKEA', 'ASAP',
+}
+# Acronyms that should always be letter-spaced even if in pronouncing dict
+_LETTER_ACRONYMS = {
+    'USA', 'FBI', 'CIA', 'GOP', 'NHS', 'BBC', 'CNN', 'NBC', 'ABC',
+    'CBS', 'HBO', 'IRS', 'SEC', 'FCC', 'FTC', 'EPA', 'DOJ', 'NSA',
+    'IMF', 'WHO', 'WTO', 'UAE', 'UK', 'EU', 'UN', 'US',
+}
+
+_ALL_CAPS_WORD   = re.compile(r'\b([A-Z]{2,})\b')
+_MULTI_CAPS_PHRASE = re.compile(r'(?:\b[A-Z]{2,}\b\s+){1,}\b[A-Z]{2,}\b')
+
+def _letter_space(word: str) -> str:
+    return ' '.join(word)
+
+def _should_letter_space(word: str) -> bool:
+    if word in _LETTER_ACRONYMS:
+        return True
+    if word in _WORD_ACRONYMS:
+        return False
+    # Short (2-3 chars): always letter-space
+    if len(word) <= 3:
+        return True
+    # Check pronouncing dict if available
+    if _HAS_PRONOUNCING:
+        phones = _pronouncing.phones_for_word(word.lower())
+        if phones:
+            return False   # pronouncing dict knows it → treat as word
+    # Fallback: letter-space if no vowels
+    return not any(c in 'AEIOUaeiou' for c in word)
+
+def load_acronym_overrides(config) -> tuple[set, set]:
+    """Load [AcronymOverrides] returning (word_set, letter_set)."""
+    word_set   = set(_WORD_ACRONYMS)
+    letter_set = set(_LETTER_ACRONYMS)
+    if not config.has_section("AcronymOverrides"):
+        return word_set, letter_set
+    for acronym, mode in config["AcronymOverrides"].items():
+        a = acronym.upper()
+        if mode.strip().lower() == 'word':
+            word_set.add(a)
+            letter_set.discard(a)
+        elif mode.strip().lower() == 'letter':
+            letter_set.add(a)
+            word_set.discard(a)
+    return word_set, letter_set
+
+def _replace_acronyms(text: str,
+                      word_set: set = _WORD_ACRONYMS,
+                      letter_set: set = _LETTER_ACRONYMS) -> str:
+    # Don't touch all-caps phrases (2+ consecutive all-caps words = headline)
+    protected = set()
+    for m in _MULTI_CAPS_PHRASE.finditer(text):
+        protected.add(m.group(0))
+
+    def _sub(m):
+        word = m.group(1)
+        # Check if this word is part of a protected phrase
+        start = m.start()
+        for phrase in protected:
+            idx = text.find(phrase)
+            if idx != -1 and idx <= start < idx + len(phrase):
+                return word  # leave as-is
+        if _should_letter_space_with_sets(word, word_set, letter_set):
+            return _letter_space(word)
+        return word
+
+    return _ALL_CAPS_WORD.sub(_sub, text)
+
+def _should_letter_space_with_sets(word: str, word_set: set, letter_set: set) -> bool:
+    if word in letter_set:
+        return True
+    if word in word_set:
+        return False
+    if len(word) <= 3:
+        return True
+    if _HAS_PRONOUNCING:
+        phones = _pronouncing.phones_for_word(word.lower())
+        if phones:
+            return False
+    return not any(c in 'AEIOUaeiou' for c in word)
+
+
+# --- Main pipeline ---
+
+def apply_builtin_transformations(text: str,
+                                  emoji_stripper: callable = None,
+                                  word_set: set = _WORD_ACRONYMS,
+                                  letter_set: set = _LETTER_ACRONYMS) -> str:
+    """Apply all built-in text transformations in correct order."""
+    if emoji_stripper:
+        text = emoji_stripper(text)
+    text = _strip_quotes(text)
+    text = _APOSTROPHE_RE.sub("'", text)   # normalize apostrophe variants
+    text = _replace_currency(text)
+    text = _replace_emails(text)
+    text = _replace_file_extensions(text)
+    text = _replace_urls(text)
+    text = _replace_num_suffixes(text)
+    text = _replace_hyphens(text)
+    text = _replace_numbers(text)
+    text = _replace_acronyms(text, word_set, letter_set)
+    text = re.sub(r' {2,}', ' ', text).strip()
+    return text
+
+
+# Apostrophe variants to normalize to standard straight apostrophe
+_APOSTROPHE_RE = re.compile(r"['\u2019\u02bc`]")
+
+# Double currency word pattern — catches "dollars dollars" etc.
+_DOUBLE_CURRENCY_RE = re.compile(
+    r'\b(dollars|pounds|euros|yen|cents|pence)\s+\1\b',
+    re.IGNORECASE
+)
+
+def apply_user_replacements(text: str, replacements: list[tuple[str, str]]) -> str:
+    """Apply user-defined literal find/replace pairs from [TextReplacements].
+    - Apostrophe variants in text and find keys are normalized before matching
+    - Matching is case-insensitive
+    - Replacement values are padded with spaces for correct word separation
+    - Double currency words (e.g. 'dollars dollars') are collapsed
+    - Double spaces are collapsed after all replacements
+    """
+    # Normalize apostrophes in text before matching
+    text = _APOSTROPHE_RE.sub("'", text)
+
+    for find, replace in replacements:
+        find_normalized = _APOSTROPHE_RE.sub("'", find)
+        text = re.sub(
+            re.escape(find_normalized),
+            f" {replace} ",
+            text,
+            flags=re.IGNORECASE
+        )
+
+    # Collapse double currency words introduced by our transformations
+    text = _DOUBLE_CURRENCY_RE.sub(r'\1', text)
+    # Collapse any double spaces introduced by padding
+    text = re.sub(r' {2,}', ' ', text)
+    return text.strip()
+
+
+def load_user_replacements(config) -> list[tuple[str, str]]:
+    """Load [TextReplacements] from config into a list of (find, replace) tuples."""
+    if not config.has_section("TextReplacements"):
+        return []
+    return [(find, replace) for find, replace in config["TextReplacements"].items()]
 
 
 # ---------------------------------------------------------------------------
@@ -289,6 +742,17 @@ def generate_chunk_audio(state: ServerState, chunk_index: int, log) -> bool:
              chunk_index, voice_name, speed,
              f": {repr(text)}" if log.isEnabledFor(10) else "")
 
+    # Apply text transformations before sending to TTS engine
+    tts_text = apply_builtin_transformations(
+        text,
+        emoji_stripper=state.emoji_stripper,
+        word_set=state.word_acronyms,
+        letter_set=state.letter_acronyms,
+    )
+    tts_text = apply_user_replacements(tts_text, state.user_replacements)
+    if log.isEnabledFor(10) and tts_text != text:
+        log.debug("Chunk %d after transforms: %r", chunk_index, tts_text)
+
     # Write debug chunk file if debug_dir is configured
     if debug_dir and log.isEnabledFor(10):
         try:
@@ -304,7 +768,7 @@ def generate_chunk_audio(state: ServerState, chunk_index: int, log) -> bool:
         pocket_tts_logger = logging.getLogger("pocket_tts.models.tts_model")
         pocket_tts_logger.addHandler(eos_handler)
         try:
-            audio = model.generate_audio(vs, text).numpy()
+            audio = model.generate_audio(vs, tts_text).numpy()
         finally:
             pocket_tts_logger.removeHandler(eos_handler)
 
@@ -894,9 +1358,14 @@ def main():
     tts_model = TTSModel.load_model()
     log.info("Model loaded")
 
-    state             = ServerState(settings, voices)
-    state.tts_model   = tts_model
-    state.sample_rate = tts_model.sample_rate
+    state                   = ServerState(settings, voices)
+    state.tts_model         = tts_model
+    state.sample_rate       = tts_model.sample_rate
+    state.user_replacements = load_user_replacements(config)
+    state.emoji_stripper    = _build_emoji_stripper(load_allowed_emojis(config))
+    state.word_acronyms, state.letter_acronyms = load_acronym_overrides(config)
+    if state.user_replacements:
+        log.info("Loaded %d user text replacement(s)", len(state.user_replacements))
 
     # Load default voice
     if not load_voice(state, state.voice_name, log):
