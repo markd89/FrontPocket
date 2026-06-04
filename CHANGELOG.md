@@ -5,7 +5,7 @@ All notable changes to FrontPocket will be documented here.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ---
 
-## [1.5.0] — 2026-06-01
+## [1.5.0] — 2026-06-03
 
 ### Better handling of numbers and currency.
 - Example: $1.6B is now spoken as "one point six billion dollars" 
