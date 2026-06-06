@@ -613,7 +613,7 @@ _APOSTROPHE_RE = re.compile(r"['\u2019\u02bc`]")
 
 # Double currency word pattern — catches "dollars dollars" etc.
 _DOUBLE_CURRENCY_RE = re.compile(
-    r'\b(dollars|pounds|euros|yen|cents|pence)\s+\1\b',
+    r'\b(dollars|pounds|euros|yen|cents|pence|percent)\s+\1\b',
     re.IGNORECASE
 )
 
