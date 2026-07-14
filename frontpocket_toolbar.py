@@ -387,16 +387,17 @@ class FrontPocketToolbar(QWidget):
                 print("Toolbar: Play (clipboard)")
 
         elif key == "pause":
-            if self.play_state == "playing":
-                self._run("--pause")
-                self.play_state = "paused"
-                print("Toolbar: Pause")
-            elif self.play_state == "paused":
+            if self.play_state == "paused":
                 # Pause toggles to resume
                 self._run("--resume")
                 self.play_state = "playing"
                 print("Toolbar: Resume (via pause)")
-            # stopped — pause does nothing
+            else:
+                # playing or stopped — send pause and transition to paused
+                # Safe to send speculatively: --pause on idle server is harmless
+                self._run("--pause")
+                self.play_state = "paused"
+                print("Toolbar: Pause")
             self._update_pause_tooltip()
 
         elif key == "stop":
