@@ -7,7 +7,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [1.5.1] — 2026-07-13
 ### frontpocket_toolbar.py can now pause/resume speech that was not initiated by the toolbar.
-Minor rework on pause/resume so that the toolbar can be used to pause/resume speech that was initiated with the CLI client 'fp'. This was done to support the TTS Plugin for Lifrea - LifereaSpeaks.
+- Minor rework on pause/resume so that the toolbar can be used to pause/resume speech that was initiated with the CLI client 'fp'. This was done to support the TTS Plugin for Lifrea - LifereaSpeaks.
+
+---
 
 ## [1.5.0] — 2026-06-03
 
